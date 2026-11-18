@@ -4,9 +4,10 @@ A plain-English walkthrough of the code, for someone reading it for the first
 time. It is updated at the end of every build step. The README explains *why*
 Orbit is built the way it is; this guide explains *how* the code does it.
 
-Status: **two adapters wired end to end (Cravath, Weil)**. `orbit run` fetches
-both firms' partners and stores them as a snapshot (on 18 Nov: Cravath 65,
-Weil 92). No normalisation, health checks, diff or report yet.
+Status: **core logic wired in (step 2)**. `orbit run` fetches Cravath and Weil,
+keeps partners only, health-checks each firm, stores the snapshot, diffs each
+OK firm against its last OK snapshot, pairs cross-firm moves and stores the
+events. No report yet.
 
 ## Run flow
 
@@ -21,21 +22,99 @@ What `orbit run` does today:
    - look up its adapter in the registry. With no adapter, the firm is
      recorded as SKIPPED;
    - call `fetch_partners()`;
-   - on success, append the partners to `observations` and record the firm as
-     OK with its partner count;
    - on `FetchBlocked`, record BLOCKED; on `FetchFailed`, `AdapterError` or any
      unexpected error, record FAILED, with the reason in `firm_runs.message`.
-     Nothing is stored for that firm, so a failure can never look like an
-     empty firm;
+     Nothing is stored for that firm;
+   - on success, `cli.save_snapshot`:
+     - keeps partners only (`normalise.filter_partners`);
+     - runs the health check against the firm's last OK count
+       (`health.check_health`, giving OK or SUSPECT);
+     - stores the snapshot with `name_norm` filled (`normalise.normalise_name`);
+     - records the status;
    - commit, so each firm is saved on its own.
-6. Stamp the run finished (`store.finish_run`) and print one line per firm.
+6. `cli.record_events` runs `diff.diff_run`, then stores the events
+   (`store.save_events`):
+   - Each OK firm is compared with its last OK snapshot. A firm that isn't OK
+     produces no events, and a firm's first OK snapshot is only a baseline.
+   - Same `person_key` in both snapshots: OFFICE_CHANGED / TITLE_CHANGED if
+     those differ. Only in the new snapshot: JOINED. Only in the old one: LEFT.
+   - A LEFT at firm A and a JOINED at firm B are paired when the names match
+     (`diff.match_moves`). The pair can be in this run, or one side can be an
+     unmatched event from the last 4 weeks.
+   - The same normalised name at two OK firms in this run gets a
+     LISTED_AT_TWO_FIRMS flag (`diff.find_dual_listings`).
+7. Stamp the run finished and print one line per firm, plus an event summary.
 
 Raw responses land in `data/raw/<run_id>/<firm_id>/`.
 
-Still to slot in, between fetching and storing: normalise, then the health
-check (0 partners, or a >30% drop, makes a firm SUSPECT), then the diff
-against the last OK run. Until the health check exists, "OK" only means
-"fetched and parsed without error".
+### Event types
+- Facts: JOINED, LEFT, OFFICE_CHANGED, TITLE_CHANGED, and MOVED (an automatic
+  cross-firm match).
+- Review flags, always `needs_review`:
+  - POSSIBLE_MOVE: links a LEFT and a JOINED that might be the same person.
+    The LEFT and JOINED themselves stay as facts.
+  - LISTED_AT_TWO_FIRMS: the same normalised name at two firms in one run.
+    Usually someone whose old firm hasn't removed their profile yet.
+
+### Matching people across firms
+`diff.name_score` uses rapidfuzz `token_set_ratio` on normalised names, so a
+middle name present at one firm only doesn't block a match.
+
+- **Automatic:** a score of 92 or more **and** identical normalised first and
+  last names. One MOVED replaces this run's LEFT/JOINED. The first-and-last-name
+  rule exists because short names score high on small differences: "Jane Doe"
+  vs "Janet Doe" scores about 94.
+- **Uncertain:** any other pair scoring 85 or more. The LEFT and JOINED are
+  kept as facts, and a POSSIBLE_MOVE links them for a human to check.
+- **Across weeks:** firms update their websites at different speeds, so a
+  LEFT or JOINED in this run can also pair with an unmatched JOINED or LEFT
+  from runs that started in the last 28 days (`MATCH_WINDOW_DAYS`, using
+  `store.get_recent_events`). The earlier event stays stored as it was, and
+  the new MOVED records its id as `details["matched_event_id"]`. An event that
+  already has a MOVED pointing at it isn't matched again, and two earlier
+  events are never paired with each other.
+
+**Known limitation: name changes.** Matching is by name, so a partner whose
+name changes while moving (e.g. after marriage) shows up as a separate LEFT
+and JOINED, not a MOVED. Bracketed former names such as "(née …)" are
+removed, but they're never used to match. A fix would need another identifier
+(e.g. a bar number), which we don't collect.
+
+**Listed at two firms** is flagged in every run while it lasts, including a
+firm's first (baseline) run, because it's a state worth checking, not a change.
+
+### `orbit/normalise.py`, `orbit/health.py`, `orbit/diff.py`
+- `normalise.py`:
+  - `is_partner` counts titles containing "partner" (Executive, Managing,
+    Presiding…), except those with counsel, associate, retired, former or
+    emeritus;
+  - `normalise_name` lowercases, strips accents, removes bracketed parts such
+    as "(née …)", honorifics, suffixes (Jr., III) and single-letter initials,
+    and maps a short list of unambiguous nicknames (Bill→William, Bob→Robert).
+- `health.py`: 0 partners, or a drop of more than 30% versus the last OK run,
+  makes a firm SUSPECT. SUSPECT snapshots are stored, for the record, but
+  never diffed.
+- `diff.py`: pure functions (`diff_firm`, `match_moves`, `find_dual_listings`,
+  `name_score`), plus `diff_run` and `unmatched_recent_events`, which read
+  from the store.
+- Tests:
+  - `tests/test_normalise.py`, `tests/test_health.py` and `tests/test_diff.py`
+    (pure functions);
+  - `tests/test_run_flow.py` (multi-run scenarios on a temporary SQLite file,
+    with run dates set explicitly):
+    - the first run is a baseline;
+    - a cross-firm move gives exactly one MOVED;
+    - a move spread over two weeks is a MOVED, but one six weeks apart stays
+      LEFT plus JOINED;
+    - an earlier event that's already matched isn't reused;
+    - two firms listing the same person are flagged;
+    - a drop from 90 to 10 partners is SUSPECT with zero events;
+    - the run after a SUSPECT run diffs against the last OK run.
+
+All tests use fictional people.
+
+Partner filtering moved out of the Cravath adapter into this shared step.
+Adapters now return every person they parse.
 
 ## Files
 
@@ -101,13 +180,19 @@ Non-obvious decisions:
   that way.
 - Functions don't commit; the caller does. That lets one firm's work be saved
   in a single transaction later.
-- `save_observations` takes the normalised names as a separate, optional list,
-  because name normalisation will live in `normalise.py`, not in the store.
-  Until that exists, nothing is passed and `name_norm` is stored as NULL.
+- `save_observations` takes the normalised names as a separate list, because
+  name normalisation lives in `normalise.py`, not in the store. `orbit run`
+  always passes them. Snapshots stored before step 2 (runs 1–6) have
+  `name_norm` NULL.
 - `get_last_ok_run_id` exists because diffs compare against the last *OK* run
-  for a firm, not simply the previous run.
-- There are no event read or write helpers yet. They arrive with the diff
-  engine, alongside the event model they need.
+  for a firm, not simply the previous run. `get_last_ok_partner_count` gives
+  that run's partner count, for the health check.
+- `save_events` / `get_events` write and read the `events` table, using the
+  `Event` model from `models.py`. `details` is stored as JSON, and events read
+  back carry their database `id`. `get_recent_events` returns events from runs
+  that started within N days before a given run, for cross-week move matching.
+  The `type` column also holds the two review flags, POSSIBLE_MOVE and
+  LISTED_AT_TWO_FIRMS, beyond the five types in PLAN.md.
 
 ### `orbit/fetch.py`
 The polite fetcher. Every network request in Orbit goes through `Fetcher`, so
@@ -180,23 +265,19 @@ How a hit becomes a `PartnerRecord`:
   `Unknown office (<id>)` with a warning, rather than failing the firm.
 - `profile_url` is `profile_base_url` plus the hit's relative `url`.
 
-Partner only: after collecting, `keep_partners` drops anyone whose title
-isn't exactly "Partner" (e.g. Of Counsel), and logs how many were dropped. The
-plan and CLAUDE.md put this partner filter in shared normalise code. It sits
-in the adapter for now because `normalise.py` doesn't exist yet, and should
-move there when it does.
+The adapter returns everyone it parses. Deciding who counts as a partner is
+the shared step's job (`normalise.filter_partners`), as for every firm.
 
 Safety checks, all raising `AdapterError` so the run records the firm as
 FAILED instead of storing a misleading list:
 - the response isn't JSON, or isn't shaped as expected;
 - fewer people were collected than the endpoint's `total` (a partial list
   would later look like partners leaving);
-- no partners at all are left. The adapter never returns an empty list,
-  because zero means the site or our query changed, not that everyone left.
+- nobody came back at all. The adapter never returns an empty list, because
+  zero means the site or our query changed, not that everyone left.
 
 The parsing is in plain functions (`parse_search_response`, `hit_to_record`,
-`office_names`, `keep_partners`) so tests can run them on a saved file without
-a network.
+`office_names`) so tests can run them on a saved file without a network.
 
 ### `tests/test_adapter_cravath.py` and `tests/fixtures/cravath/`
 The fixture keeps the exact structure of the 18 Nov response, cut down to the
@@ -207,10 +288,10 @@ the 3 hits cover all three offices and a partner with no title. It's kept
 small and fictional on purpose: a fixture should test parsing, not publish
 real people or become a copy of the directory.
 
-The 13 tests run with no network (`pytest`) and cover:
+The 12 tests run with no network (`pytest`) and cover:
 - field mapping, the office map and the title fallback;
 - unknown offices, and a badly shaped response or hit;
-- the Partner-only filter;
+- returning every title untouched, for the shared partner filter;
 - fetching, using a fake fetcher in place of the real one: one request when
   everything fits, paging when the total is larger, failing on an incomplete
   list, and never returning an empty list.
@@ -267,11 +348,8 @@ Safety checks, all raising `AdapterError`:
 The parsing is in plain functions (`parse_listing_response`,
 `snippet_to_record`) so tests can run them on a saved file without a network.
 
-Difference from Cravath: Weil has no exact-title filter. Cravath drops anyone
-not titled exactly "Partner", which would drop Weil's "Executive Partner". The
-shared partner filter, once `normalise.py` exists, should treat titles like
-"Executive Partner" or "Managing Partner" as partners, and both adapters should
-leave the filtering to it.
+Like Cravath, the adapter leaves partner filtering to the shared step, which
+counts "Executive Partner" as a partner.
 
 ### `tests/test_adapter_weil.py` and `tests/fixtures/weil/`
 The fixture keeps the exact JSON and snippet HTML of the 18 Nov response, with
