@@ -9,7 +9,9 @@ To add a firm, import its adapter class here and add one line, e.g.
 
 from orbit.adapters.base import Adapter
 from orbit.adapters.cravath import CravathAdapter
+from orbit.adapters.weil import WeilAdapter
 
 ADAPTERS: dict[str, type[Adapter]] = {
     "cravath": CravathAdapter,
+    "weil": WeilAdapter,
 }

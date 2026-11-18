@@ -144,6 +144,21 @@ firms:
 
   - id: weil
     name: Weil, Gotshal & Manges
-    enabled: false
-    status: NOT_ASSESSED
-    reason: Not yet assessed.
+    enabled: true
+    status: ACTIVE
+    directory_url: https://www.weil.com/people
+    source:
+      # JSON endpoint behind the directory page; each person comes back as an HTML snippet.
+      listing_url: https://www.weil.com/WeilPeopleListing/Execute
+      profile_base_url: https://www.weil.com
+      item_id: "{2186BD5B-A7D8-40E1-87CD-9246016A7816}"   # the listing's own ID (required)
+      practice_param: "param_practices_sm|primary_practice_s|additional_primary_practices_sm"
+      # Combined as OR. Identified one GUID at a time on 18 Nov: every result carried
+      # that practice's tag (M&A 51/51, PE 79/79; 38 in both, 92 together).
+      practice_ids:
+        - "{2F2727CC-4E6C-443B-8777-5FE134DFDDB5}"   # Mergers & Acquisitions
+        - "{C4F4F120-2CEF-4831-B05F-CE442ECB0789}"   # Private Equity
+      role_param: param_role_s
+      role_id: "{9B7FDA9B-B476-422F-9F30-68DC43AC4126}"   # Partner
+      page_size: 100
+      expected_partners: 92
