@@ -4,8 +4,9 @@ A plain-English walkthrough of the code, for someone reading it for the first
 time. It is updated at the end of every build step. The README explains *why*
 Orbit is built the way it is; this guide explains *how* the code does it.
 
-Status: **step 2 (skeleton)**. `orbit run` loads the config and records an
-empty run. No adapters, normalisation, health checks, diff or report yet.
+Status: **first adapter wired end to end (Cravath)**. `orbit run` fetches
+Cravath's partners and stores them as a snapshot (65 partners on 18 Nov). No
+normalisation, health checks, diff or report yet.
 
 ## Run flow
 
@@ -14,12 +15,27 @@ What `orbit run` does today:
 1. Load and validate `config/firms.yaml` (`models.load_config`).
 2. Open `data/orbit.db`, creating the file and tables if needed (`store.connect`).
 3. Copy the firm list into the `firms` table (`store.upsert_firms`).
-4. Create a row in `runs`, then stamp it finished (`store.create_run`, `store.finish_run`).
-5. Print the run id and which enabled firms have an adapter registered.
+4. Create a row in `runs` (`store.create_run`).
+5. Open one polite `Fetcher` for the run. For each enabled firm
+   (`cli.collect_firm`):
+   - look up its adapter in the registry. With no adapter, the firm is
+     recorded as SKIPPED;
+   - call `fetch_partners()`;
+   - on success, append the partners to `observations` and record the firm as
+     OK with its partner count;
+   - on `FetchBlocked`, record BLOCKED; on `FetchFailed`, `AdapterError` or any
+     unexpected error, record FAILED, with the reason in `firm_runs.message`.
+     Nothing is stored for that firm, so a failure can never look like an
+     empty firm;
+   - commit, so each firm is saved on its own.
+6. Stamp the run finished (`store.finish_run`) and print one line per firm.
 
-Where later steps slot in, between creating and finishing the run: for each enabled firm, look up
-its adapter in the registry, fetch through the polite fetcher, normalise,
-health-check, store the snapshot and diff against the last OK run.
+Raw responses land in `data/raw/<run_id>/<firm_id>/`.
+
+Still to slot in, between fetching and storing: normalise, then the health
+check (0 partners, or a >30% drop, makes a firm SUSPECT), then the diff
+against the last OK run. Until the health check exists, "OK" only means
+"fetched and parsed without error".
 
 ## Files
 
@@ -82,8 +98,9 @@ Non-obvious decisions:
   that way.
 - Functions don't commit; the caller does. That lets one firm's work be saved
   in a single transaction later.
-- `save_observations` takes the normalised names as a separate list, because
-  name normalisation lives in `normalise.py` (step 3), not in the store.
+- `save_observations` takes the normalised names as a separate, optional list,
+  because name normalisation will live in `normalise.py`, not in the store.
+  Until that exists, nothing is passed and `name_norm` is stored as NULL.
 - `get_last_ok_run_id` exists because diffs compare against the last *OK* run
   for a firm, not simply the previous run.
 - There are no event read or write helpers yet. They arrive with the diff
@@ -130,13 +147,76 @@ like "every partner left". `AdapterError` covers "the site answered, but not
 in the expected shape".
 
 ### `orbit/adapters/__init__.py`
-The registry: a plain dict from firm id to adapter class, empty for now. It's
-explicit on purpose, with no auto-discovery: you can see every adapter in one
-place.
+The registry: a plain dict from firm id to adapter class. It currently holds
+one entry, `"cravath": CravathAdapter`. It's explicit on purpose, with no
+auto-discovery: you can see every adapter in one place.
+
+### `orbit/adapters/cravath.py`
+Cravath's directory page is drawn by JavaScript, but the data comes from a
+plain JSON endpoint, `/_site/search`, which robots.txt allows. The adapter asks
+it for the Partner position (`po=5499`) in the Corporate practice (`pr=3275`),
+taking the endpoint URL and both IDs from `firms.yaml`. It makes one request
+with `s=100`. If the reported `total` is larger than what came back, it pages
+on with the offset `f` until everyone is collected. Today all 65 partners fit
+in that one request.
+
+How a hit becomes a `PartnerRecord`:
+- `person_key` is Cravath's own `_id`, stable across runs.
+- `title` is the hit's title. Two partners (e.g. the Presiding Partner) have
+  none, so they fall back to `position_title` from config ("Partner"), because
+  the endpoint files them under the Partner position.
+- `practices` is always `["Corporate"]` (`practice_name` in config), because
+  hits carry no practice field: everyone returned is in the practice we asked
+  for. Cravath has no M&A sub-practice, so this over-includes capital markets
+  and finance partners. That's a known gap, noted in RECON.md.
+- `offices`: hits contain office IDs only, next to phone and fax numbers that
+  we never read. `office_names` in config maps them (5413 New York, 5412
+  London, 23913 Washington, D.C.). The mapping came from each office's phone
+  dialling code in the 18 Nov response. An unknown ID becomes
+  `Unknown office (<id>)` with a warning, rather than failing the firm.
+- `profile_url` is `profile_base_url` plus the hit's relative `url`.
+
+Partner only: after collecting, `keep_partners` drops anyone whose title
+isn't exactly "Partner" (e.g. Of Counsel), and logs how many were dropped. The
+plan and CLAUDE.md put this partner filter in shared normalise code. It sits
+in the adapter for now because `normalise.py` doesn't exist yet, and should
+move there when it does.
+
+Safety checks, all raising `AdapterError` so the run records the firm as
+FAILED instead of storing a misleading list:
+- the response isn't JSON, or isn't shaped as expected;
+- fewer people were collected than the endpoint's `total` (a partial list
+  would later look like partners leaving);
+- no partners at all are left. The adapter never returns an empty list,
+  because zero means the site or our query changed, not that everyone left.
+
+The parsing is in plain functions (`parse_search_response`, `hit_to_record`,
+`office_names`, `keep_partners`) so tests can run them on a saved file without
+a network.
+
+### `tests/test_adapter_cravath.py` and `tests/fixtures/cravath/`
+The fixture keeps the exact structure of the 18 Nov response, cut down to the
+fields the adapter reads, with fictional people ("Jane Example", "John
+Sample", "Alex Placeholder") and made-up IDs and profile URLs. The office IDs
+are the real ones. Emails, phones, photos and bios are removed. Between them
+the 3 hits cover all three offices and a partner with no title. It's kept
+small and fictional on purpose: a fixture should test parsing, not publish
+real people or become a copy of the directory.
+
+The 13 tests run with no network (`pytest`) and cover:
+- field mapping, the office map and the title fallback;
+- unknown offices, and a badly shaped response or hit;
+- the Partner-only filter;
+- fetching, using a fake fetcher in place of the real one: one request when
+  everything fits, paging when the total is larger, failing on an incomplete
+  list, and never returning an empty list.
 
 ### `orbit/cli.py`
 The `orbit` command, built with Typer. `orbit run` follows the run flow above.
-Options: `--config` (default `config/firms.yaml`), `--db` (default
+`collect_firm` handles one firm: run its adapter, turn the result or the error
+into a status (`FirmOutcome`), store the snapshot only when the status is OK,
+record the status, and commit. It catches any unexpected exception too, so a
+bug in one adapter can't stop the other firms. Options: `--config` (default `config/firms.yaml`), `--db` (default
 `data/orbit.db`), and `-v` for debug logs. Paths are relative to the folder
 you run from, normally the repo root.
 
@@ -154,6 +234,9 @@ build/cache folders and local tool config files that contain tokens.
    `self.firm.source` for every URL or ID.
 3. Add one line to `ADAPTERS` in `orbit/adapters/__init__.py`.
 4. Add one fixture test, `tests/test_adapter_<firm>.py`, that parses a cached
-   page from `tests/fixtures/` without using the network.
+   page from `tests/fixtures/` without using the network. Trim the fixture to
+   a handful of records, remove emails and phone numbers, and replace real
+   people with fictional names, IDs and URLs (keeping the structure) before
+   committing it. See the Cravath adapter for an example.
 
 Nothing else in the codebase should need to change.
