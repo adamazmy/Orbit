@@ -62,6 +62,17 @@ firms:
       profile_base_url: https://www.cravath.com
       position_id: "5499"   # Partner
       practice_id: "3275"   # Corporate (no M&A sub-practice on Cravath's site)
+      # Hits carry no practice field: everyone returned is in the practice we asked for.
+      practice_name: Corporate
+      # A few hits have no title (e.g. the Presiding Partner); they are still filed
+      # under the Partner position, so that's the title we record.
+      position_title: Partner
+      # Hits give office IDs only. Mapped from each office's phone dialling code
+      # in the 18 Nov response: 212 = New York, +44 20 = London, 202 = Washington.
+      office_names:
+        5413: New York
+        5412: London
+        23913: Washington, D.C.
       page_size: 100
       expected_partners: 65
 
