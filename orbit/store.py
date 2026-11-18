@@ -131,13 +131,16 @@ def save_observations(
     conn: sqlite3.Connection,
     run_id: int,
     records: list[PartnerRecord],
-    name_norms: list[str],
+    name_norms: list[str | None] | None = None,
 ) -> None:
     """Append one run's snapshot of partners.
 
     name_norms[i] is the normalised form of records[i].name. It's passed in
     rather than computed here so the store stays free of matching logic.
+    Until normalise.py exists, callers pass nothing and name_norm is stored as NULL.
     """
+    if name_norms is None:
+        name_norms = [None] * len(records)
     rows = [
         (
             run_id,
