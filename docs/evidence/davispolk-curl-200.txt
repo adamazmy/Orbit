@@ -1,0 +1,120 @@
+Captured: 18/11/2026 22:20:24.39 curl.exe with Orbit UA vs plain curl 
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 3065
+Cache-Control: max-age=2592000, public
+Content-Language: en
+Content-Security-Policy: default-src 'self'; script-src 'report-sample' 'self' 'unsafe-inline' 'unsafe-eval' https://bam.nr-data.net https://js-agent.newrelic.com https://player.vimeo.com https://unpkg.com https://www.google-analytics.com https://www.googletagmanager.com https://www.vimeo.com https://vimeo.com https://unpkg.com/web-vitals/dist/web-vitals.iife.js https://connect.facebook.net https://cdn.ckeditor.com https://cdn.jsdelivr.net https://docx-converter.cke-cs.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://bam.nr-data.net https://js-agent.newrelic.com https://player.vimeo.com https://unpkg.com https://www.google-analytics.com https://www.googletagmanager.com https://www.vimeo.com https://vimeo.com https://unpkg.com/web-vitals/dist/web-vitals.iife.js https://connect.facebook.net https://cdn.ckeditor.com https://cdn.jsdelivr.net https://docx-converter.cke-cs.com; object-src 'none'; style-src 'report-sample' 'self' 'unsafe-inline' https://fast.fonts.net https://demo.dashboardpack.com https://cdn.jsdelivr.net; img-src 'self' data: https://davispolk.com https://www.davispolk.com https://i.vimeocdn.com https://www.google-analytics.com https://www.googletagmanager.com https://*.google-analytics.com; media-src 'self'; form-action 'self'; frame-src 'self' https://player.vimeo.com https://cdn.yoshki.com https://api-6fc85ce3.duosecurity.com https://www.googletagmanager.com; child-src 'self' https://player.vimeo.com; font-src 'self' https://demo.dashboardpack.com; connect-src 'self' https://bam.nr-data.net https://*.algolia.net https://insights.algolia.io https://www.google-analytics.com https://*.algolianet.com https://*.google-analytics.com https://www.googletagmanager.com https://*.cke-cs.com https://api.bigdatacloud.net; report-uri /report-csp-violation; upgrade-insecure-requests
+Content-Type: text/plain; charset=utf-8
+Cross-Origin-Embedder-Policy: unsafe-none
+Cross-Origin-Opener-Policy: same-origin-allow-popups
+Etag: W/"1795034395"
+Last-Modified: Wed, 18 Nov 2026 20:39:55 GMT
+Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+Referrer-Policy: strict-origin-when-cross-origin
+Server: nginx
+Strict-Transport-Security: max-age=31622400; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Drupal-Cache: MISS
+X-Drupal-Dynamic-Cache: MISS
+X-Frame-Options: SAMEORIGIN
+X-Generator: Drupal 11 (https://www.drupal.org)
+X-Pantheon-Styx-Hostname: styx-us-a-79f85bbb9f-zztzg
+X-Permitted-Cross-Domain-Policies: none
+X-Styx-Req-Id: 36ab76aa-e390-11f1-803a-961d5a9d5d41
+Age: 6028
+Accept-Ranges: bytes
+Via: 1.1 varnish, 1.1 varnish, 1.1 varnish, 1.1 varnish
+Date: Wed, 18 Nov 2026 22:20:24 GMT
+X-Served-By: cache-chi-kmdw8640096-CHI, cache-lhr-egll1980061-LHR, cache-lhr-egll1980041-LHR, cache-lhr-egll1980041-LHR
+X-Cache: HIT, HIT, MISS, MISS
+X-Cache-Hits: 29, 3, 0, 0
+X-Timer: S1795040425.599537,VS0,VE13
+Vary: Accept-Encoding, Cookie
+
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 3065
+Cache-Control: max-age=2592000, public
+Content-Language: en
+Content-Security-Policy: default-src 'self'; script-src 'report-sample' 'self' 'unsafe-inline' 'unsafe-eval' https://bam.nr-data.net https://js-agent.newrelic.com https://player.vimeo.com https://unpkg.com https://www.google-analytics.com https://www.googletagmanager.com https://www.vimeo.com https://vimeo.com https://unpkg.com/web-vitals/dist/web-vitals.iife.js https://connect.facebook.net https://cdn.ckeditor.com https://cdn.jsdelivr.net https://docx-converter.cke-cs.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://bam.nr-data.net https://js-agent.newrelic.com https://player.vimeo.com https://unpkg.com https://www.google-analytics.com https://www.googletagmanager.com https://www.vimeo.com https://vimeo.com https://unpkg.com/web-vitals/dist/web-vitals.iife.js https://connect.facebook.net https://cdn.ckeditor.com https://cdn.jsdelivr.net https://docx-converter.cke-cs.com; object-src 'none'; style-src 'report-sample' 'self' 'unsafe-inline' https://fast.fonts.net https://demo.dashboardpack.com https://cdn.jsdelivr.net; img-src 'self' data: https://davispolk.com https://www.davispolk.com https://i.vimeocdn.com https://www.google-analytics.com https://www.googletagmanager.com https://*.google-analytics.com; media-src 'self'; form-action 'self'; frame-src 'self' https://player.vimeo.com https://cdn.yoshki.com https://api-6fc85ce3.duosecurity.com https://www.googletagmanager.com; child-src 'self' https://player.vimeo.com; font-src 'self' https://demo.dashboardpack.com; connect-src 'self' https://bam.nr-data.net https://*.algolia.net https://insights.algolia.io https://www.google-analytics.com https://*.algolianet.com https://*.google-analytics.com https://www.googletagmanager.com https://*.cke-cs.com https://api.bigdatacloud.net; report-uri /report-csp-violation; upgrade-insecure-requests
+Content-Type: text/plain; charset=utf-8
+Cross-Origin-Embedder-Policy: unsafe-none
+Cross-Origin-Opener-Policy: same-origin-allow-popups
+Etag: W/"1795034395"
+Last-Modified: Wed, 18 Nov 2026 20:39:55 GMT
+Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+Referrer-Policy: strict-origin-when-cross-origin
+Server: nginx
+Strict-Transport-Security: max-age=31622400; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Drupal-Cache: MISS
+X-Drupal-Dynamic-Cache: MISS
+X-Frame-Options: SAMEORIGIN
+X-Generator: Drupal 11 (https://www.drupal.org)
+X-Pantheon-Styx-Hostname: styx-us-a-79f85bbb9f-zztzg
+X-Permitted-Cross-Domain-Policies: none
+X-Styx-Req-Id: 36ab76aa-e390-11f1-803a-961d5a9d5d41
+Age: 6029
+Accept-Ranges: bytes
+Via: 1.1 varnish, 1.1 varnish, 1.1 varnish, 1.1 varnish
+Date: Wed, 18 Nov 2026 22:20:25 GMT
+X-Served-By: cache-chi-kmdw8640096-CHI, cache-lhr-egll1980061-LHR, cache-lhr-egll1980050-LHR, cache-lhr-egll1980050-LHR
+X-Cache: HIT, HIT, MISS, MISS
+X-Cache-Hits: 29, 4, 0, 0
+X-Timer: S1795040426.790818,VS0,VE12
+Vary: Accept-Encoding, Cookie
+
+
+=====================================================================
+NOTE (added 18 Nov 2026): the same URL fetched by Orbit's fetcher gets 403
+=====================================================================
+The two curl.exe responses above (200, served from the CDN cache) were made
+from the same machine with the same Orbit User-Agent. Orbit's fetcher
+(orbit.fetch.Fetcher: httpx 0.28.1 on Python's OpenSSL 3.0.13) got 403 from
+the Pantheon edge on https://www.davispolk.com/robots.txt every time, even
+with headers identical to curl's. The only remaining difference is the TLS
+client, so we treat this as TLS fingerprinting and do not bypass it.
+Lines starting ">" were sent; lines starting "<" were received.
+
+--- Try 1 (18 Nov evening, exact time not recorded): fetcher defaults ---
+> host: www.davispolk.com
+> accept: */*
+> accept-encoding: gzip, deflate
+> connection: keep-alive
+> user-agent: OrbitBot/0.1 (partner-market research; weekly; +https://github.com/adamazmy/Orbit)
+< HTTP/1.1 403 Forbidden
+< server: Pantheon
+  (only the status, the server header and the body title "403 - Forbidden"
+  were recorded for tries 1 and 2)
+
+--- Try 2 (straight after try 1): plus honest Accept / Accept-Language ---
+> host: www.davispolk.com
+> accept-encoding: gzip, deflate
+> connection: keep-alive
+> user-agent: OrbitBot/0.1 (partner-market research; weekly; +https://github.com/adamazmy/Orbit)
+> accept: text/html,application/xhtml+xml,*/*;q=0.8
+> accept-language: en-GB,en;q=0.9
+< HTTP/1.1 403 Forbidden
+< server: Pantheon
+
+--- Try 3 (deciding request): exactly curl's headers, full capture ---
+> GET https://www.davispolk.com/robots.txt HTTP/1.1
+> host: www.davispolk.com
+> accept: */*
+> user-agent: OrbitBot/0.1 (partner-market research; weekly; +https://github.com/adamazmy/Orbit)
+< HTTP/1.1 403 Forbidden
+< connection: close
+< content-length: 560
+< retry-after: 0
+< server: Pantheon
+< content-type: text/html; charset=utf-8
+< x-pantheon-serious-reason: The page could not be loaded properly.
+< date: Wed, 18 Nov 2026 22:23:53 GMT
+< x-served-by: cache-lhr-egll1980038-LHR
+< x-cache: MISS
+< x-cache-hits: 0
+< vary: Cookie
+< age: 0
+< accept-ranges: bytes
+< via: 1.1 varnish

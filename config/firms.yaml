@@ -19,10 +19,12 @@ user_agent: "OrbitBot/0.1 (partner-market research; weekly; +https://github.com/
 firms:
   - id: wachtell
     name: Wachtell, Lipton, Rosen & Katz
-    enabled: true
-    status: ACTIVE
+    enabled: false
+    status: BLOCKED
+    reason: "Cloudflare bot challenge on /attorneys (403, Cf-Mitigated: challenge) despite robots.txt allowing it; not bypassed. Evidence: docs/evidence/wachtell-cloudflare.txt"
     directory_url: https://www.wlrk.com/attorneys
     source:
+      # Kept from recon in case the block is lifted.
       # Static HTML, one page per practice, no pagination.
       listing_urls:
         - https://www.wlrk.com/attorneys?asf_n=&asf_pa=corporate&asf_ls=&asf_p=partner&asf_ugs=
@@ -31,10 +33,12 @@ firms:
 
   - id: davis-polk
     name: Davis Polk & Wardwell
-    enabled: true
-    status: ACTIVE
+    enabled: false
+    status: BLOCKED
+    reason: "Edge (Pantheon) rejects non-browser TLS clients with 403 even with honest headers; curl from the same machine gets 200. Not bypassed."
     directory_url: https://www.davispolk.com/lawyers
     source:
+      # Kept from recon in case the block is lifted. Evidence: docs/evidence/davispolk-curl-200.txt
       # The API key expires daily: the adapter reads a fresh one from this page each run.
       key_page_url: https://www.davispolk.com/lawyers
       algolia_url: https://dbc8kua830-dsn.algolia.net/1/indexes/*/queries

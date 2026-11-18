@@ -34,8 +34,13 @@ The list of all 15 firms. Each entry has an `id` (the slug used everywhere,
 including database keys), `name`, `enabled`, a `status` and, unless the firm is
 ACTIVE, a one-line `reason`.
 
-- **ACTIVE** (enabled): Wachtell, Davis Polk, Cravath.
-- **BLOCKED**: Simpson Thacher (robots.txt disallows its directory API).
+- **ACTIVE** (enabled): Cravath.
+- **BLOCKED**: Simpson Thacher (robots.txt disallows its directory API),
+  Wachtell (Cloudflare bot challenge on `/attorneys`; evidence in
+  `docs/evidence/wachtell-cloudflare.txt`) and Davis Polk (the Pantheon edge
+  returns 403 to non-browser TLS clients even with honest headers; evidence in
+  `docs/evidence/davispolk-curl-200.txt`). Their `source:` blocks are kept so
+  they can be switched back on if the block is lifted.
 - **OUT_OF_SCOPE**: Quinn Emanuel (no transactional M&A practice).
 - **NOT_ASSESSED**: the other ten.
 

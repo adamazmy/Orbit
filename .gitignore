@@ -36,3 +36,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Private planning notes (kept local)
+PLAN.md
