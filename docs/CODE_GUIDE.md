@@ -4,9 +4,9 @@ A plain-English walkthrough of the code, for someone reading it for the first
 time. It is updated at the end of every build step. The README explains *why*
 Orbit is built the way it is; this guide explains *how* the code does it.
 
-Status: **first adapter wired end to end (Cravath)**. `orbit run` fetches
-Cravath's partners and stores them as a snapshot (65 partners on 18 Nov). No
-normalisation, health checks, diff or report yet.
+Status: **two adapters wired end to end (Cravath, Weil)**. `orbit run` fetches
+both firms' partners and stores them as a snapshot (on 18 Nov: Cravath 65,
+Weil 92). No normalisation, health checks, diff or report yet.
 
 ## Run flow
 
@@ -44,13 +44,15 @@ Package metadata and dependencies. Only libraries approved in `CLAUDE.md` are
 listed; `pytest` is an optional `dev` extra. `[project.scripts]` maps the
 `orbit` command to the Typer app in `orbit/cli.py`, so after installing the
 package, `orbit run` works from the terminal. Python is pinned to 3.12.
+`selectolax` needs at least 1.0.2, the version tested with the Weil adapter:
+it provides `selectolax.lexbor`, while 1.0 removed the old default parser.
 
 ### `config/firms.yaml`
 The list of all 15 firms. Each entry has an `id` (the slug used everywhere,
 including database keys), `name`, `enabled`, a `status` and, unless the firm is
 ACTIVE, a one-line `reason`.
 
-- **ACTIVE** (enabled): Cravath.
+- **ACTIVE** (enabled): Cravath, Weil.
 - **BLOCKED**: Simpson Thacher (robots.txt disallows its directory API),
   Wachtell (Cloudflare bot challenge on `/attorneys`; evidence in
   `docs/evidence/wachtell-cloudflare.txt`) and Davis Polk (the Pantheon edge
@@ -58,10 +60,11 @@ ACTIVE, a one-line `reason`.
   `docs/evidence/davispolk-curl-200.txt`). Their `source:` blocks are kept so
   they can be switched back on if the block is lifted.
 - **OUT_OF_SCOPE**: Quinn Emanuel (no transactional M&A practice).
-- **NOT_ASSESSED**: the other ten.
+- **NOT_ASSESSED**: the other nine.
 
 The `source:` block holds everything firm-specific an adapter needs (listing
-URLs, Algolia app id and index, Cravath's position and practice IDs). That
+URLs, Algolia app id and index, Cravath's position and practice IDs, Weil's
+listing, practice and role GUIDs). That
 keeps URLs and IDs out of Python code, so if a firm changes a practice ID only
 the config changes. Values come from `RECON.md`. `expected_partners` is the
 hand-counted number from recon, kept for the accuracy check later.
@@ -148,8 +151,9 @@ in the expected shape".
 
 ### `orbit/adapters/__init__.py`
 The registry: a plain dict from firm id to adapter class. It currently holds
-one entry, `"cravath": CravathAdapter`. It's explicit on purpose, with no
-auto-discovery: you can see every adapter in one place.
+two entries, `"cravath": CravathAdapter` and `"weil": WeilAdapter`. It's
+explicit on purpose, with no auto-discovery: you can see every adapter in one
+place.
 
 ### `orbit/adapters/cravath.py`
 Cravath's directory page is drawn by JavaScript, but the data comes from a
@@ -210,6 +214,84 @@ The 13 tests run with no network (`pytest`) and cover:
 - fetching, using a fake fetcher in place of the real one: one request when
   everything fits, paging when the total is larger, failing on an incomplete
   list, and never returning an empty list.
+
+### `orbit/adapters/weil.py`
+Weil's directory page (`weil.com/people`) fills its results by JavaScript from
+a JSON endpoint, `/WeilPeopleListing/Execute`, which robots.txt allows. The
+adapter sends:
+- `itemId` (the listing's own ID);
+- the two practice GUIDs, joined with a comma so they combine as OR:
+  `{2F2727CC-…}` is Mergers & Acquisitions and `{C4F4F120-…}` is Private Equity.
+  This was checked by querying one GUID at a time: every result carried that
+  practice's tag;
+- the Partner role GUID;
+- `pagenum` and `pagesize`.
+
+The endpoint URL, the two parameter names with GUIDs in them, and every GUID
+come from `firms.yaml`.
+
+The response is JSON, but each person inside it is an HTML snippet. `TotalCount`
+and `TotalPages` describe the whole result. `SearchGroups` holds a
+"Leadership" group plus A–Z groups, and each group's `SearchResultItemsAsHtml`
+is a list of snippets. Each snippet is parsed with selectolax's `lexbor`
+parser. selectolax 1.0 removed its old default parser, so `selectolax.parser`
+no longer works.
+
+How a snippet becomes a `PartnerRecord`:
+- `name` is the text of `h3 a`, and `profile_url` is `profile_base_url` plus
+  that link's `/people/<slug>`.
+- `person_key` is the slug, e.g. `jane-doe`. It's taken from the profile URL,
+  which is stable.
+- `title` is `p.ppl-item-status b`. It's kept as given: the role filter already
+  asks for partners, and one person is titled "Executive Partner".
+- `offices` are the `/locations/...` links in `p.ppl-item-status`. Some people
+  have two.
+- `practices` are the links in `p.ppl-item-categories`, kept as listed. They can
+  include tags beyond M&A/PE, such as "Sustainability & ESG".
+- The photo, phone line (`p.ppl-item-tel`) and bio extract
+  (`div.termhighlights`) are never read.
+
+Paging and dedupe: page 1 is requested with `pagesize=100`, which today holds
+all 92 partners. If `TotalCount` isn't reached, the adapter asks for the next
+`pagenum`. It stops at `TotalPages`, or when a page adds nobody new. The
+Leadership group repeats people who also appear under their letter (97
+snippets for 92 people on 18 Nov), so records are kept once per profile URL.
+
+Safety checks, all raising `AdapterError`:
+- the response isn't JSON, or is missing `TotalCount`, `TotalPages` or
+  `SearchGroups`;
+- a snippet has no name, title or `/people/` link;
+- the unique count doesn't equal `TotalCount`;
+- nobody comes back at all.
+
+The parsing is in plain functions (`parse_listing_response`,
+`snippet_to_record`) so tests can run them on a saved file without a network.
+
+Difference from Cravath: Weil has no exact-title filter. Cravath drops anyone
+not titled exactly "Partner", which would drop Weil's "Executive Partner". The
+shared partner filter, once `normalise.py` exists, should treat titles like
+"Executive Partner" or "Managing Partner" as partners, and both adapters should
+leave the filtering to it.
+
+### `tests/test_adapter_weil.py` and `tests/fixtures/weil/`
+The fixture keeps the exact JSON and snippet HTML of the 18 Nov response, with
+three fictional people:
+- "Jordan Fictional": two offices and two practices. Appears in Leadership
+  *and* under J, as real leaders do.
+- "Avery Example": Paris, Private Equity.
+- "Sam Sample": titled "Executive Partner".
+
+The phone line is left out of the snippets entirely. The photo path and bio
+text are fictional, so the tests can check they never reach a record.
+
+The 10 tests run with no network (`pytest`) and cover:
+- parsing every snippet including repeats, and field mapping (two offices,
+  several practices, absolute URL, slug as key);
+- keeping title variants, and never storing bio or photo text;
+- a malformed snippet or response raising `AdapterError`;
+- fetching, with a fake fetcher: one request that dedupes Leadership and
+  sends the exact config IDs, paging by `pagenum`, failing when the unique
+  count doesn't match `TotalCount`, and never returning an empty list.
 
 ### `orbit/cli.py`
 The `orbit` command, built with Typer. `orbit run` follows the run flow above.
