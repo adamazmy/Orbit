@@ -12,12 +12,7 @@ from pathlib import Path
 import pytest
 
 from orbit.adapters.base import AdapterError
-from orbit.adapters.cravath import (
-    CravathAdapter,
-    hit_to_record,
-    keep_partners,
-    parse_search_response,
-)
+from orbit.adapters.cravath import CravathAdapter, hit_to_record, parse_search_response
 from orbit.models import load_config
 
 FIXTURE = (
@@ -106,14 +101,14 @@ def test_hit_missing_name_raises(firm):
         hit_to_record(hit, firm.source, firm.id)
 
 
-# --- Partner-only filter ---------------------------------------------------
+# --- Partner filtering is shared, not done here -----------------------------
 
 
-def test_keeps_only_partners(firm):
+def test_returns_every_title_for_the_shared_filter(firm):
+    # orbit/normalise.py decides who counts as a partner; the adapter only parses.
     hits = [make_hit("1"), make_hit("2", title="Of Counsel"), make_hit("3")]
-    _, records = parse_search_response(make_page(hits, 3), firm.source, firm.id)
-    partners = keep_partners(records, "Partner")
-    assert sorted(r.person_key for r in partners) == ["1", "3"]
+    records = CravathAdapter(firm, FakeFetcher([make_page(hits, 3)])).fetch_partners()
+    assert sorted(r.title for r in records) == ["Of Counsel", "Partner", "Partner"]
 
 
 # --- Fetching (fake fetcher, no network) -----------------------------------
@@ -176,9 +171,3 @@ def test_fails_on_incomplete_list(firm, payload):
 def test_never_returns_empty_list(firm):
     with pytest.raises(AdapterError):
         CravathAdapter(firm, FakeFetcher([make_page([], 0)])).fetch_partners()
-
-
-def test_fails_when_nobody_is_a_partner(firm):
-    page = make_page([make_hit("1", title="Of Counsel")], 1)
-    with pytest.raises(AdapterError):
-        CravathAdapter(firm, FakeFetcher([page])).fetch_partners()

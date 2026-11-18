@@ -6,8 +6,8 @@ ask it for one position (Partner) in one practice (Corporate) and page through
 the results. See RECON.md section 3.
 
 Each hit carries far more than we keep (emails, phone numbers, photos, bios);
-only name, title, office, profile URL and the stable `_id` are read. Only people
-titled Partner are returned.
+only name, title, office, profile URL and the stable `_id` are read. Filtering
+to partners happens in the shared step (orbit/normalise.py), not here.
 
 Known gap: Cravath has no M&A sub-practice, so "Corporate" also includes
 capital markets and finance partners (documented in RECON.md).
@@ -26,19 +26,17 @@ class CravathAdapter(Adapter):
     """Fetches Cravath's Corporate partners from the JSON search endpoint."""
 
     def fetch_partners(self) -> list[PartnerRecord]:
-        """Fetch every hit the endpoint reports, then keep only people titled Partner."""
-        source = self.firm.source
-        total, records = self._fetch_all_hits(int(source["page_size"]))
+        """Fetch every hit the endpoint reports and check none are missing."""
+        total, records = self._fetch_all_hits(int(self.firm.source["page_size"]))
         if len(records) != total:
             # A partial list would later look like partners leaving, so fail instead.
             raise AdapterError(
                 f"Cravath reported {total} people but {len(records)} were collected"
             )
-        partners = keep_partners(records, source["position_title"])
-        if not partners:
-            # Zero partners means the site or our query changed, not that everyone left.
-            raise AdapterError("Cravath returned no partners")
-        return partners
+        if not records:
+            # Zero people means the site or our query changed, not that everyone left.
+            raise AdapterError("Cravath returned no people")
+        return records
 
     def _fetch_all_hits(self, page_size: int) -> tuple[int, list[PartnerRecord]]:
         """One request of page_size; if the total is larger, page on with the offset."""
@@ -73,17 +71,6 @@ class CravathAdapter(Adapter):
             raise AdapterError(
                 f"Cravath search did not return JSON: {error}"
             ) from error
-
-
-def keep_partners(
-    records: list[PartnerRecord], partner_title: str
-) -> list[PartnerRecord]:
-    """Keep only records whose title is exactly the partner title (scope rule: Partner only)."""
-    partners = [r for r in records if r.title.casefold() == partner_title.casefold()]
-    dropped = len(records) - len(partners)
-    if dropped:
-        logger.info("Cravath: dropped %d people not titled %s", dropped, partner_title)
-    return partners
 
 
 def parse_search_response(
