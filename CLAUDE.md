@@ -16,7 +16,11 @@ Project: Orbit, a partner market tracker (take-home for Pinpoint Partners). Read
 ## Work in small steps
 - One module or one adapter per step. Stop after each step and summarise what changed and why.
 - Pure logic (normalise, diff, signals, health) must have pytest tests that run without network.
-- Commit after each working step with a clear message.
+- Commit small and often: one logical change per commit (e.g. "Add Cravath fixture", "Map offices_info to offices", "Register Cravath adapter"), not one commit per step.
+- Before each commit, show me the diff and a one-line message. Commit only after I say go.
+- Messages: imperative mood, under 60 characters, with a short body only if the "why" isn't obvious.
+- Never commit data/, databases, raw cached pages, API keys, or fixtures containing emails or phone numbers.
+- Run the tests before any commit that touches code.
 - At the end of each step, update `docs/CODE_GUIDE.md`: what the new module does, how it fits the run flow, and any non-obvious decision. Plain English, written for someone reading the code for the first time.
 - Every module begins with a docstring explaining its purpose.
 
