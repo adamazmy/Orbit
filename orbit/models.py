@@ -4,6 +4,9 @@ PartnerRecord is the one thing every adapter returns, so the rest of the
 pipeline (normalise, health, store, diff, report) never needs to know which
 firm or website a partner came from.
 
+Event is one change the diff found between two snapshots (joined, left,
+moved firm, changed office or title).
+
 FirmConfig and OrbitConfig validate config/firms.yaml with pydantic, so a typo
 in the config fails loudly at startup instead of halfway through a run.
 """
@@ -15,6 +18,16 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 FirmStatus = Literal["ACTIVE", "BLOCKED", "OUT_OF_SCOPE", "NOT_ASSESSED"]
+EventType = Literal[
+    "JOINED",
+    "LEFT",
+    "MOVED",
+    "OFFICE_CHANGED",
+    "TITLE_CHANGED",
+    # Review flags (needs_review=True), kept beside the facts they're about:
+    "POSSIBLE_MOVE",  # a LEFT and a JOINED whose names are close but not certain
+    "LISTED_AT_TWO_FIRMS",  # the same normalised name at two firms in one run
+]
 
 
 class PartnerRecord(BaseModel):
@@ -33,6 +46,27 @@ class PartnerRecord(BaseModel):
     # Stable within a firm across runs (profile URL or the site's own ID), so the
     # diff can tell "same person, new office" apart from "one left, one joined".
     person_key: str
+
+
+class Event(BaseModel):
+    """One change found by the diff. Mirrors a row of the events table.
+
+    from_firm / to_firm: LEFT has only from_firm, JOINED only to_firm, MOVED and
+    POSSIBLE_MOVE both, OFFICE_CHANGED / TITLE_CHANGED the same firm in both, and
+    LISTED_AT_TWO_FIRMS the two firms.
+    """
+
+    # The events table's id: set when read back from the database, None before saving.
+    id: int | None = None
+    type: EventType
+    name: str
+    from_firm: str | None = None
+    to_firm: str | None = None
+    # Old/new values and profile links, e.g. {"old_offices": [...], "new_offices": [...]}.
+    details: dict[str, Any] = Field(default_factory=dict)
+    # MOVED only: fuzzy name-match score (0-100), and whether a human should check it.
+    confidence: float | None = None
+    needs_review: bool = False
 
 
 class FirmConfig(BaseModel):

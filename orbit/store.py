@@ -11,10 +11,10 @@ a single transaction.
 
 import json
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from orbit.models import FirmConfig, PartnerRecord
+from orbit.models import Event, FirmConfig, PartnerRecord
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS firms (
@@ -209,6 +209,20 @@ def get_last_ok_run_id(
     return row[0]
 
 
+def get_last_ok_partner_count(
+    conn: sqlite3.Connection, firm_id: str, before_run_id: int
+) -> int | None:
+    """Partner count of this firm's last OK run before the given run (None if there's none)."""
+    last_ok = get_last_ok_run_id(conn, firm_id, before_run_id)
+    if last_ok is None:
+        return None
+    row = conn.execute(
+        "SELECT partner_count FROM firm_runs WHERE run_id = ? AND firm_id = ?",
+        (last_ok, firm_id),
+    ).fetchone()
+    return row[0]
+
+
 def get_firm_runs(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
     """Every firm's status for one run (feeds the health panel)."""
     return conn.execute(
@@ -216,3 +230,74 @@ def get_firm_runs(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
         "ORDER BY firm_id",
         (run_id,),
     ).fetchall()
+
+
+def save_events(conn: sqlite3.Connection, run_id: int, events: list[Event]) -> None:
+    """Append the change events found in one run."""
+    conn.executemany(
+        """
+        INSERT INTO events (
+            run_id, type, name, from_firm, to_firm, details, confidence, needs_review
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                run_id,
+                event.type,
+                event.name,
+                event.from_firm,
+                event.to_firm,
+                json.dumps(event.details),
+                event.confidence,
+                int(event.needs_review),
+            )
+            for event in events
+        ],
+    )
+
+
+EVENT_COLUMNS = "id, type, name, from_firm, to_firm, details, confidence, needs_review"
+
+
+def get_events(conn: sqlite3.Connection, run_id: int) -> list[Event]:
+    """Every change event recorded for one run, in the order they were saved."""
+    rows = conn.execute(
+        f"SELECT {EVENT_COLUMNS} FROM events WHERE run_id = ? ORDER BY id",
+        (run_id,),
+    ).fetchall()
+    return [_row_to_event(row) for row in rows]
+
+
+def get_recent_events(conn: sqlite3.Connection, run_id: int, days: int) -> list[Event]:
+    """Events from earlier runs that started within `days` before this run started.
+
+    Lets a LEFT this week be paired with a JOINED from a few weeks ago (and vice
+    versa), since firms don't update their websites on the same day.
+    """
+    started = conn.execute(
+        "SELECT started_at FROM runs WHERE id = ?", (run_id,)
+    ).fetchone()
+    cutoff = datetime.fromisoformat(started[0]) - timedelta(days=days)
+    rows = conn.execute(
+        f"""
+        SELECT {EVENT_COLUMNS} FROM events
+        WHERE run_id IN (SELECT id FROM runs WHERE id < ? AND started_at >= ?)
+        ORDER BY id
+        """,
+        (run_id, cutoff.isoformat(timespec="seconds")),
+    ).fetchall()
+    return [_row_to_event(row) for row in rows]
+
+
+def _row_to_event(row: sqlite3.Row) -> Event:
+    """Turn an events-table row back into an Event (details JSON decoded)."""
+    return Event(
+        id=row["id"],
+        type=row["type"],
+        name=row["name"],
+        from_firm=row["from_firm"],
+        to_firm=row["to_firm"],
+        details=json.loads(row["details"]),
+        confidence=row["confidence"],
+        needs_review=bool(row["needs_review"]),
+    )
