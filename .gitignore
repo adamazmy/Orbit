@@ -4,14 +4,22 @@
 .claude/settings.local.json
 .agents/
 
-# Dependencies
-node_modules/
+# Orbit data: scraped pages and the database (real partner data never goes in git)
+data/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
 
 # Build output
 dist/
 build/
-.next/
-out/
 coverage/
 
 # Environment
@@ -21,9 +29,6 @@ coverage/
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
 
 # OS / editor
 .DS_Store

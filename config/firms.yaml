@@ -1,0 +1,134 @@
+# Orbit firm configuration.
+#
+# One entry per firm. Firm-specific values (URLs, practice IDs, position IDs,
+# practice names in scope) live here, never in adapter code. See RECON.md for
+# how each value was found.
+#
+# status:
+#   ACTIVE        - adapter built, scraped each run (must be enabled: true)
+#   BLOCKED       - we can't collect politely (robots.txt, bot protection...)
+#   OUT_OF_SCOPE  - firm doesn't fit the Corporate/M&A scope rule
+#   NOT_ASSESSED  - not looked at yet
+# Every status other than ACTIVE needs a one-line reason.
+#
+# source: free-form settings that only that firm's adapter reads.
+
+# Sent with every request so site owners can see who we are and how to reach us.
+user_agent: "OrbitBot/0.1 (partner-market research; weekly; +https://github.com/adamazmy/Orbit)"
+
+firms:
+  - id: wachtell
+    name: Wachtell, Lipton, Rosen & Katz
+    enabled: true
+    status: ACTIVE
+    directory_url: https://www.wlrk.com/attorneys
+    source:
+      # Static HTML, one page per practice, no pagination.
+      listing_urls:
+        - https://www.wlrk.com/attorneys?asf_n=&asf_pa=corporate&asf_ls=&asf_p=partner&asf_ugs=
+        - https://www.wlrk.com/attorneys?asf_n=&asf_pa=real-estate-ma&asf_ls=&asf_p=partner&asf_ugs=
+      expected_partners: 35
+
+  - id: davis-polk
+    name: Davis Polk & Wardwell
+    enabled: true
+    status: ACTIVE
+    directory_url: https://www.davispolk.com/lawyers
+    source:
+      # The API key expires daily: the adapter reads a fresh one from this page each run.
+      key_page_url: https://www.davispolk.com/lawyers
+      algolia_url: https://dbc8kua830-dsn.algolia.net/1/indexes/*/queries
+      algolia_app_id: DBC8KUA830
+      algolia_index: lawyer_search_en
+      profile_base_url: https://www.davispolk.com
+      practices_in_scope:
+        - Mergers & Acquisitions
+        - Private Equity
+      job_title: Partner
+      hits_per_page: 100
+      expected_partners: 80
+
+  - id: cravath
+    name: Cravath, Swaine & Moore
+    enabled: true
+    status: ACTIVE
+    directory_url: https://www.cravath.com/people/index.html
+    source:
+      search_url: https://www.cravath.com/_site/search
+      profile_base_url: https://www.cravath.com
+      position_id: "5499"   # Partner
+      practice_id: "3275"   # Corporate (no M&A sub-practice on Cravath's site)
+      page_size: 100
+      expected_partners: 65
+
+  - id: simpson-thacher
+    name: Simpson Thacher & Bartlett
+    enabled: false
+    status: BLOCKED
+    reason: Directory API is disallowed by robots.txt (/dataservices) and the allowed sitemap is stale (2021).
+
+  - id: quinn-emanuel
+    name: Quinn Emanuel Urquhart & Sullivan
+    enabled: false
+    status: OUT_OF_SCOPE
+    reason: Litigation-only firm with no transactional M&A practice (only M&A litigation).
+
+  - id: kirkland
+    name: Kirkland & Ellis
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: latham
+    name: Latham & Watkins
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: skadden
+    name: Skadden, Arps, Slate, Meagher & Flom
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: gibson-dunn
+    name: Gibson, Dunn & Crutcher
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: paul-hastings
+    name: Paul Hastings
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: king-spalding
+    name: King & Spalding
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: paul-weiss
+    name: Paul, Weiss, Rifkind, Wharton & Garrison
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: milbank
+    name: Milbank
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: sullivan-cromwell
+    name: Sullivan & Cromwell
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
+
+  - id: weil
+    name: Weil, Gotshal & Manges
+    enabled: false
+    status: NOT_ASSESSED
+    reason: Not yet assessed.
