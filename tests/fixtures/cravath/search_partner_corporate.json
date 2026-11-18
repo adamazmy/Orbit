@@ -1,0 +1,55 @@
+{
+  "mode": "raw_json",
+  "hits": {
+    "5499": {
+      "total": 3,
+      "hits": [
+        {
+          "_id": "90001",
+          "name": "Jane Example",
+          "title": null,
+          "url": "/people/jane-example.html",
+          "template_keyword": "attorney",
+          "offices_info": [
+            {
+              "type": "office_information",
+              "office_information": {
+                "office": 5413
+              }
+            }
+          ]
+        },
+        {
+          "_id": "90002",
+          "name": "John Sample",
+          "title": "Partner",
+          "url": "/people/john-sample.html",
+          "template_keyword": "attorney",
+          "offices_info": [
+            {
+              "type": "office_information",
+              "office_information": {
+                "office": 5412
+              }
+            }
+          ]
+        },
+        {
+          "_id": "90003",
+          "name": "Alex Placeholder",
+          "title": "Partner",
+          "url": "/people/alex-placeholder.html",
+          "template_keyword": "attorney",
+          "offices_info": [
+            {
+              "type": "office_information",
+              "office_information": {
+                "office": 23913
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
