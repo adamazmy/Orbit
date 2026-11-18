@@ -8,7 +8,7 @@ requires-python = ">=3.12,<3.13"
 # no adapter needs a headless browser yet, so we don't install one.
 dependencies = [
     "httpx>=0.27",
-    "selectolax>=0.3",
+    "selectolax>=1.0.2",  # selectolax.lexbor; 1.0 removed the old default parser
     "rapidfuzz>=3.9",
     "pydantic>=2.7",
     "pyyaml>=6.0",
