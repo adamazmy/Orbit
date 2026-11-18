@@ -63,9 +63,29 @@ Recon done by hand on 18 Nov 2026. This is the source of truth for building adap
 
 - Litigation-only firm: no transactional M&A practice, only M&A *litigation*. Excluded by the scope rule; explain in README.
 
+## 6. Weil, Gotshal & Manges — BUILD (JSON listing endpoint with HTML snippets)
+
+Recon 18 Nov 2026, 23:03.
+
+- The directory page `https://www.weil.com/people` fills its results by JavaScript from a JSON endpoint:
+  `GET https://www.weil.com/WeilPeopleListing/Execute?pagenum=1&pagesize=10&itemId=%7B2186BD5B-A7D8-40E1-87CD-9246016A7816%7D&param_practices_sm%7Cprimary_practice_s%7Cadditional_primary_practices_sm=%7B2F2727CC-4E6C-443B-8777-5FE134DFDDB5%7D%2C%7BC4F4F120-2CEF-4831-B05F-CE442ECB0789%7D&param_role_s=%7B9B7FDA9B-B476-422F-9F30-68DC43AC4126%7D`
+  - `itemId` = the listing's own ID (required).
+  - The two GUIDs in `param_practices_sm|primary_practice_s|additional_primary_practices_sm` are combined (OR): `{2F2727CC-4E6C-443B-8777-5FE134DFDDB5}` = **Mergers & Acquisitions** and `{C4F4F120-2CEF-4831-B05F-CE442ECB0789}` = **Private Equity**. Identified on 18 Nov by querying one GUID at a time: M&A returned 51 partners, all tagged M&A; PE returned 79, all tagged PE; 38 are in both (51 + 79 − 38 = 92).
+  - `param_role_s` = **Partner**.
+  - `pagenum` / `pagesize` page the results. `pagesize=100` works: one page holds all 92.
+- Response: `TotalCount` (**92**), `TotalPages`, and `SearchGroups`: a "Leadership" group plus A–Z groups. Each group's `SearchResultItemsAsHtml` is a list of HTML snippets, one per person:
+  - name: `h3 a`; profile link: its `href`, `/people/<slug>`;
+  - title: `p.ppl-item-status b`; offices: the `/locations/...` links in `p.ppl-item-status`;
+  - practices: the links in `p.ppl-item-categories`.
+- Snippets also hold a photo, a phone number (`p.ppl-item-tel`) and a bio extract (`div.termhighlights`): never read.
+- **Leadership repeats people:** 97 snippets but 92 unique profile URLs. All 5 Leadership entries also appear, identically, in the A–Z groups. Dedupe by profile URL.
+- Titles: 91 "Partner", 1 "Executive Partner" (the role filter is Partner, so it counts). 8 people list two offices. Practice tags go beyond M&A/PE (e.g. Sustainability & ESG, Capital Markets), but every person matched the M&A/PE filter.
+- robots.txt: the endpoint is allowed. Only `/Print?`, `/VCard/`, `/sitecore/` and some media paths are disallowed.
+- **Expected: 92 partners.**
+
 ## Others — not assessed
 
-Kirkland & Ellis, Latham & Watkins, Skadden, Gibson Dunn, Paul Hastings, King & Spalding, Paul Weiss, Milbank, Sullivan & Cromwell, Weil. List in config as `enabled: false`, status "not yet assessed".
+Kirkland & Ellis, Latham & Watkins, Skadden, Gibson Dunn, Paul Hastings, King & Spalding, Paul Weiss, Milbank, Sullivan & Cromwell. List in config as `enabled: false`, status "not yet assessed".
 
 ---
 
