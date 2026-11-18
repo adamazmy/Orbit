@@ -66,3 +66,12 @@ Recon done by hand on 18 Nov 2026. This is the source of truth for building adap
 ## Others — not assessed
 
 Kirkland & Ellis, Latham & Watkins, Skadden, Gibson Dunn, Paul Hastings, King & Spalding, Paul Weiss, Milbank, Sullivan & Cromwell, Weil. List in config as `enabled: false`, status "not yet assessed".
+
+---
+
+## Real-world validation
+
+Known facts checked against Orbit's stored Cravath snapshot (run 5, 18 Nov 2026, 65 partners).
+
+- **Aaron M. Gruber** (Cravath co-head of M&A): independently confirmed present in our Cravath list (New York, `person_key` 2242).
+- **Iliana Karaoglan:** Weil → Simpson Thacher (Jun 2025) → Weil (Jun 2026) → Cravath (confirmed on cravath.com, 18 Nov 2026). Present in our Cravath list (New York, `person_key` 35943). Weil profile status: _TBC_.
