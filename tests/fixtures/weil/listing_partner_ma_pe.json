@@ -1,0 +1,69 @@
+{
+  "TotalCount": 3,
+  "SearchGroups": [
+    {
+      "Title": "Leadership",
+      "Count": 1,
+      "GroupId": null,
+      "ApplicableFilterIds": [],
+      "SearchResultItemsAsHtml": [
+        "\n            <div class=\"m-image\">\n                <img src=\"/-/media/people/x/jordan_fictional.jpg?h=112&amp;iar=0&amp;w=112\" alt=\"Jordan Fictional\" title=\"Jordan Fictional\">\n            </div>\n        <div class=\"m-body\">\n            <h3 class=\"h3 h-alt\"><a href=\"/people/jordan-fictional\">Jordan Fictional </a></h3>\n                <p class=\"ppl-item-status\">\n                    <b>Partner</b>\n                        <a href=\"/locations/new-york\">New York</a>\n                        <a href=\"/locations/london\">London</a>\n                </p>\n                            <p class=\"ppl-item-categories\">\n                        <a href=\"/experience/practices/mergers-acquisitions\">Mergers &amp; Acquisitions</a>\n                        <a href=\"/experience/practices/private-equity\">Private Equity</a>\n                </p>\n\n                <div class=\"termhighlights\">\n        Jordan Fictional is a fictional person used only in Orbit's tests; this bio text must never be stored.\n        ...\n    </div>\n\n        </div>"
+      ],
+      "PageSize": 0,
+      "PageNumber": 0,
+      "TotalPages": 0,
+      "RenderViewMoreLink": false
+    },
+    {
+      "Title": "A",
+      "Count": 1,
+      "GroupId": null,
+      "ApplicableFilterIds": [],
+      "SearchResultItemsAsHtml": [
+        "\n            <div class=\"m-image\">\n                <img src=\"/-/media/people/x/avery_example.jpg?h=112&amp;iar=0&amp;w=112\" alt=\"Avery Example\" title=\"Avery Example\">\n            </div>\n        <div class=\"m-body\">\n            <h3 class=\"h3 h-alt\"><a href=\"/people/avery-example\">Avery Example </a></h3>\n                <p class=\"ppl-item-status\">\n                    <b>Partner</b>\n                        <a href=\"/locations/paris\">Paris</a>\n                </p>\n                            <p class=\"ppl-item-categories\">\n                        <a href=\"/experience/practices/private-equity\">Private Equity</a>\n                </p>\n\n                <div class=\"termhighlights\">\n        Avery Example is a fictional person used only in Orbit's tests; this bio text must never be stored.\n        ...\n    </div>\n\n        </div>"
+      ],
+      "PageSize": 0,
+      "PageNumber": 0,
+      "TotalPages": 0,
+      "RenderViewMoreLink": false
+    },
+    {
+      "Title": "J",
+      "Count": 1,
+      "GroupId": null,
+      "ApplicableFilterIds": [],
+      "SearchResultItemsAsHtml": [
+        "\n            <div class=\"m-image\">\n                <img src=\"/-/media/people/x/jordan_fictional.jpg?h=112&amp;iar=0&amp;w=112\" alt=\"Jordan Fictional\" title=\"Jordan Fictional\">\n            </div>\n        <div class=\"m-body\">\n            <h3 class=\"h3 h-alt\"><a href=\"/people/jordan-fictional\">Jordan Fictional </a></h3>\n                <p class=\"ppl-item-status\">\n                    <b>Partner</b>\n                        <a href=\"/locations/new-york\">New York</a>\n                        <a href=\"/locations/london\">London</a>\n                </p>\n                            <p class=\"ppl-item-categories\">\n                        <a href=\"/experience/practices/mergers-acquisitions\">Mergers &amp; Acquisitions</a>\n                        <a href=\"/experience/practices/private-equity\">Private Equity</a>\n                </p>\n\n                <div class=\"termhighlights\">\n        Jordan Fictional is a fictional person used only in Orbit's tests; this bio text must never be stored.\n        ...\n    </div>\n\n        </div>"
+      ],
+      "PageSize": 0,
+      "PageNumber": 0,
+      "TotalPages": 0,
+      "RenderViewMoreLink": false
+    },
+    {
+      "Title": "S",
+      "Count": 1,
+      "GroupId": null,
+      "ApplicableFilterIds": [],
+      "SearchResultItemsAsHtml": [
+        "\n            <div class=\"m-image\">\n                <img src=\"/-/media/people/x/sam_sample.jpg?h=112&amp;iar=0&amp;w=112\" alt=\"Sam Sample\" title=\"Sam Sample\">\n            </div>\n        <div class=\"m-body\">\n            <h3 class=\"h3 h-alt\"><a href=\"/people/sam-sample\">Sam Sample </a></h3>\n                <p class=\"ppl-item-status\">\n                    <b>Executive Partner</b>\n                        <a href=\"/locations/new-york\">New York</a>\n                </p>\n                            <p class=\"ppl-item-categories\">\n                        <a href=\"/experience/practices/mergers-acquisitions\">Mergers &amp; Acquisitions</a>\n                </p>\n\n                <div class=\"termhighlights\">\n        Sam Sample is a fictional person used only in Orbit's tests; this bio text must never be stored.\n        ...\n    </div>\n\n        </div>"
+      ],
+      "PageSize": 0,
+      "PageNumber": 0,
+      "TotalPages": 0,
+      "RenderViewMoreLink": false
+    }
+  ],
+  "SearchString": "",
+  "RedirectUrl": null,
+  "IsSpellCheck": false,
+  "IsViewingMore": false,
+  "PageSize": 100,
+  "PageNumber": 1,
+  "TotalPages": 1,
+  "LastAlphabetNav": "S",
+  "Facets": [],
+  "CorrectedSpelling": "",
+  "RenderBackButton": false,
+  "GroupedView": false
+}
