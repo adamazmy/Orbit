@@ -4,10 +4,18 @@ A plain-English walkthrough of the code, for someone reading it for the first
 time. It is updated at the end of every build step. The README explains *why*
 Orbit is built the way it is; this guide explains *how* the code does it.
 
-Status: **core logic wired in (step 2)**. `orbit run` fetches Cravath and Weil,
+Status: **report and demo (step 3)**. `orbit run` fetches Cravath and Weil,
 keeps partners only, health-checks each firm, stores the snapshot, diffs each
-OK firm against its last OK snapshot, pairs cross-firm moves and stores the
-events. No report yet.
+OK firm against its last OK snapshot, pairs cross-firm moves, stores the
+events and writes `reports/latest.html`. `orbit demo` shows the same report
+built from fictional data.
+
+Commands:
+- `orbit run`: collect, diff, then write `reports/latest.html`.
+- `orbit report`: re-render `reports/latest.html` from the database, with no
+  network.
+- `orbit demo`: write `reports/demo.html` from fictional data in a throwaway
+  database.
 
 ## Run flow
 
@@ -43,7 +51,8 @@ What `orbit run` does today:
      unmatched event from the last 4 weeks.
    - The same normalised name at two OK firms in this run gets a
      LISTED_AT_TWO_FIRMS flag (`diff.find_dual_listings`).
-7. Stamp the run finished and print one line per firm, plus an event summary.
+7. Stamp the run finished, write `reports/latest.html` (`report.write_report`),
+   and print one line per firm plus an event summary.
 
 Raw responses land in `data/raw/<run_id>/<firm_id>/`.
 
@@ -193,6 +202,9 @@ Non-obvious decisions:
   that started within N days before a given run, for cross-week move matching.
   The `type` column also holds the two review flags, POSSIBLE_MOVE and
   LISTED_AT_TWO_FIRMS, beyond the five types in PLAN.md.
+- `create_run` takes an optional `started_at`, so the demo can date its two
+  fictional runs a week apart. `get_run_started_at` and `get_latest_run_id`
+  serve the report.
 
 ### `orbit/fetch.py`
 The polite fetcher. Every network request in Orbit goes through `Fetcher`, so
@@ -373,17 +385,82 @@ The 10 tests run with no network (`pytest`) and cover:
 
 ### `orbit/cli.py`
 The `orbit` command, built with Typer. `orbit run` follows the run flow above.
-`collect_firm` handles one firm: run its adapter, turn the result or the error
-into a status (`FirmOutcome`), store the snapshot only when the status is OK,
-record the status, and commit. It catches any unexpected exception too, so a
-bug in one adapter can't stop the other firms. Options: `--config` (default `config/firms.yaml`), `--db` (default
-`data/orbit.db`), and `-v` for debug logs. Paths are relative to the folder
-you run from, normally the repo root.
+- `collect_firm` runs one firm's adapter. If the adapter fails, it records the
+  firm as BLOCKED or FAILED. It catches unexpected exceptions too, so a bug in
+  one adapter can't stop the other firms.
+- `save_snapshot` handles the records an adapter returned: partner filter,
+  health check, store, then commit.
+- `record_events` diffs the run and stores the events.
+
+`orbit report` and `orbit demo` are described below. Options: `--config`
+(default `config/firms.yaml`), `--db` (default `data/orbit.db`), `--output`
+(default `reports/latest.html`, or `reports/demo.html` for the demo), and `-v`
+for debug logs. Paths are relative to the folder you run from, normally the
+repo root.
+
+### `orbit/report.py` and `templates/report.html.j2`
+`write_report` renders the most recent run into a single HTML file. CSS and
+about 20 lines of vanilla JS are inline, and nothing loads from a CDN, so the
+file opens offline and can be emailed. Sections, in order:
+1. **Header:** run date, firms tracked, partners per firm.
+2. **This week's changes:** MOVED first, then JOINED, LEFT, office and title
+   changes.
+   - A firm whose first OK snapshot is this run gets "baseline recorded,
+     changes appear from the next run".
+   - POSSIBLE_MOVE and LISTED_AT_TWO_FIRMS are shown separately under "Needs
+     review", worded as doubts, never as facts.
+3. **Firm health:** every firm in config. Firms collected this run show their
+   status and reason (OK, SUSPECT, FAILED…). The others show their config
+   status and reason (BLOCKED, OUT OF SCOPE, NOT ASSESSED).
+4. **All partners:** each firm's latest OK snapshot (`snapshot_runs`). For a
+   SUSPECT or FAILED firm that's its last good list, not the doubtful or
+   missing one. So stale data is never mistaken for current, `stale_notes`
+   labels such a firm in the header and above the table: "Showing last good
+   snapshot (run N), because this run looked broken" (SUSPECT), or "…because
+   this run failed" (FAILED). The table has a text search, plus firm, office
+   and practice drop-downs that filter rows in place.
+
+The Python side (`build_report_data`, `describe_event`, `health_rows`…) does
+the grouping and wording, so the template only lays things out. Jinja2
+autoescaping is on, because names and titles come from websites. A test
+checks that a name containing `<script>` is escaped.
+
+### `orbit/demo.py`
+`orbit demo` exists because a fresh install has only one snapshot, which
+shows no changes. The demo plays two fictional weekly runs (12 and 19 Nov)
+through the real pipeline (`save_snapshot`, `record_events`), so the report
+shows real engine output. What happens between the two weeks:
+- a cross-firm MOVED (Ilona Fictional);
+- a POSSIBLE_MOVE (Jane Doe → "Janet Doe"), with its LEFT and JOINED kept;
+- a JOINED and a LEFT;
+- an office change;
+- a SUSPECT firm (10 → 2 partners, so no events from it);
+- a BLOCKED firm in the health panel.
+
+Everything happens in a `tempfile.TemporaryDirectory` database that's
+deleted afterwards. The real `data/orbit.db` is never opened, and a test spies
+on `store.connect` to prove it. The report carries the banner "DEMO —
+fictional data showing how weekly changes appear." `orbit/cli.py` imports the
+demo inside the `demo` command, not at the top, because the demo reuses the
+CLI's pipeline functions.
+
+### `tests/test_report.py`
+Builds reports from the fictional demo weeks and checks:
+- section order, and MOVED appearing first;
+- review flags kept apart and labelled;
+- health showing both SUSPECT and config-blocked firms;
+- a SUSPECT firm's partner list coming from its last good run;
+- the filters and profile links;
+- no external scripts or styles;
+- the baseline message, and the "no runs yet" page;
+- HTML escaping of names;
+- that the demo never opens or changes the real database.
 
 ### `.gitignore`
-Keeps `data/` (raw page cache and the database) and any `*.db` file out of
-git, so real scraped partner data is never committed. It also ignores Python
-build/cache folders and local tool config files that contain tokens.
+Keeps `data/` (raw page cache and the database), any `*.db` file and
+`reports/` out of git. `reports/latest.html` lists real scraped partners, so
+it follows the same rule as the database. It also ignores Python build and
+cache folders, and local tool config files that contain tokens.
 
 ## How to add a firm
 
