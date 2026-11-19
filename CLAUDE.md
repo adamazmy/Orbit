@@ -2,11 +2,15 @@
 
 Project: Orbit, a partner market tracker (take-home for Pinpoint Partners). Read PLAN.md and RECON.md first.
 
-## The author must be able to explain every line
-- Write boring, readable Python. Plain functions, clear names, type hints, docstrings on public functions.
-- No clever one-liners, metaprogramming, decorators-for-everything or abstract base class hierarchies beyond `adapters/base.py`.
-- Small files, small functions. If a function exceeds ~40 lines, split it.
-- Comments explain *why*, not *what*.
+## I need to be able to explain every line
+
+When you write code for this project, write it the way I would, so I can explain and defend all of it:
+
+- Keep the Python plain and readable: simple functions, clear names, type hints, and docstrings on public functions.
+- Don't use clever one-liners, metaprogramming, decorators for everything, or class hierarchies beyond `adapters/base.py`.
+- Keep files and functions small. If a function goes past about 40 lines, split it.
+- Comments should explain *why* something is done, not *what* the code does.
+- If you're about to write something I might not understand, stop and explain it to me first.
 
 ## Scope discipline
 - Build only what PLAN.md lists. Do not add features, dependencies or files that aren't in the plan — ask first.
