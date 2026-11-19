@@ -183,7 +183,7 @@ The brief is bigger than six hours on purpose, so these were choices, not oversi
 **What I'd change first, in order:**
 
 1. **Alerts for whoever maintains Orbit.** A firm turning SUSPECT, FAILED or BLOCKED should notify someone immediately. Otherwise a broken adapter quietly stops tracking a firm. Recruiters would get a separate weekly digest of market changes, via Teams.
-2. **Reusable adapters per platform.** Firms share search platforms (Davis Polk uses Algolia, Weil uses Sitecore). Once a second firm on the same platform appears, one configurable adapter can cover all of them. I didn't build this ahead of need.
+2. **Reusable adapters per platform.** Firms share search platforms: Cravath and Milbank both run the same `/_site/search` endpoint, with different filters and response formats. Once a third firm on it appears, one configurable adapter can cover all of them. I didn't build it from two examples, ahead of need.
 3. **A review queue.** POSSIBLE_MOVE and LISTED_AT_TWO_FIRMS items need a quick way for a recruiter to confirm or dismiss them, so the system learns from those decisions.
 4. **Incremental fetching.** Some firms publish sitemaps with last-modified dates per profile (Wachtell does), so only changed profiles would need fetching. That's gentler on sites and faster at scale.
 5. **Legitimate routes for blocked firms:** ask the firm for access, license data from a provider to fill gaps, or track lateral-hire announcements in firms' public news pages.
