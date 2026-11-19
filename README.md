@@ -4,6 +4,20 @@ Tracks Corporate/M&A partners at top law firms each week and reports who joined,
 
 ![Orbit demo report, built from fictional data](docs/images/demo.png)
 
+## Contents
+
+1. [Quick start](#quick-start)
+2. [What I built, who it's for, and why](#what-i-built-who-its-for-and-why)
+3. [Coverage and accuracy](#coverage-and-accuracy)
+4. [Architecture and key decisions](#architecture-and-key-decisions)
+5. [What I deliberately left out](#what-i-deliberately-left-out)
+6. [How it holds up as it grows, and what I'd change first](#how-it-holds-up-as-it-grows-and-what-id-change-first)
+7. [Responsible scraping and data protection](#responsible-scraping-and-data-protection)
+8. [Tech stack and why](#tech-stack-and-why)
+9. [How this feeds Future Recruiter AI](#how-this-feeds-future-recruiter-ai)
+
+For how the code works file by file, see [docs/CODE_GUIDE.md](docs/CODE_GUIDE.md). Per-firm recon notes are in [RECON.md](RECON.md).
+
 ## Quick start
 
 Requires Python 3.12.
@@ -27,29 +41,33 @@ The first live `orbit run` records a baseline: there is nothing to compare it wi
 
 Data is stored in `data/orbit.db` (SQLite) and raw responses are cached in `data/raw/<run_id>/<firm_id>/`. Both are local only and gitignored.
 
+[↑ Back to contents](#contents)
+
 ## What I built, who it's for, and why
 
-Pinpoint’s recruiters spend time before every call checking firm websites to see who is where. In a small market where partners move constantly, the useful information isn’t the list itself but what has changed.
+Pinpoint's recruiters spend time before every call checking firm websites to see who is where. In a small market where partners move constantly, the useful information isn't the list itself but what has changed.
 
-Orbit is an automated weekly report that tracks corporate and M&A partners across the target firms, so recruiters don’t have to check each site by hand. It produces a single HTML file that opens offline and can be emailed. The report shows:
+Orbit is an automated weekly report that tracks corporate and M&A partners across the target firms, so recruiters don't have to check each site by hand. It produces a single HTML file that opens offline and can be emailed. The report shows:
 
-- This week’s changes: who joined, left, moved between firms, or changed office or title.
-- A “needs review” list: possible moves the system isn’t confident enough to assert on its own.
+- This week's changes: who joined, left, moved between firms, or changed office or title.
+- A "needs review" list: possible moves the system isn't confident enough to assert on its own.
 - A searchable, filterable table of every tracked partner.
 
-Who it’s for:
+Who it's for:
 
-- Recruiters, before a call: a current view of the partner and what’s changed around them.
+- Recruiters, before a call: a current view of the partner and what's changed around them.
 - Business development: a partner leaving often means a firm needs to hire, so departures point to potential clients and live searches.
 
-Build versus buy: commercial products already exist. The [Leopard List](https://surepoint.com/legal-insights/leopard-list/) (now SurePoint Legal Insights), Firm Prospects and Law.com Compass track lateral moves across hundreds of thousands of attorneys. They’re built for breadth, so they’re generic by design and priced accordingly. Pinpoint’s need is narrower and sharper: corporate and M&A partners at a defined set of firms, presented the way its recruiters actually work. Building it means:
+Build versus buy: commercial products already exist. The [Leopard List](https://surepoint.com/legal-insights/leopard-list/) (now SurePoint Legal Insights), Firm Prospects and Law.com Compass track lateral moves across hundreds of thousands of attorneys. They're built for breadth, so they're generic by design and priced accordingly. Pinpoint's need is narrower and sharper: corporate and M&A partners at a defined set of firms, presented the way its recruiters actually work. Building it means:
 
-- It’s focused: only the partners and practices Pinpoint places, with no noise.
-- It’s owned: the data and its history stay in-house, ready to feed Future Recruiter AI’s matching and briefings.
-- It’s adaptable: adding a firm or changing what counts as “in scope” is a config change, not a feature request to a vendor.
-- It’s cheap to run: one weekly job, with no per-seat licence.
+- It's focused: only the partners and practices Pinpoint places, with no noise.
+- It's owned: the data and its history stay in-house, ready to feed Future Recruiter AI's matching and briefings.
+- It's adaptable: adding a firm or changing what counts as "in scope" is a config change, not a feature request to a vendor.
+- It's cheap to run: one weekly job, with no per-seat licence.
 
-Scope: people titled Partner in M&A, Private Equity or M&A-specific practices, in any office. Firms label practices differently, so each firm’s mapping is set explicitly in config.
+Scope: people titled Partner in M&A, Private Equity or M&A-specific practices, in any office. Firms label practices differently, so each firm's mapping is set explicitly in config.
+
+[↑ Back to contents](#contents)
 
 ## Coverage and accuracy
 
@@ -82,6 +100,8 @@ How accuracy is protected:
 - **Real-world checks** against known facts are in [RECON.md](RECON.md#real-world-validation).
 
 Known limitation: matching is by name, so a partner whose name changes as they move shows as a separate LEFT and JOINED, not a move.
+
+[↑ Back to contents](#contents)
 
 ## Architecture and key decisions
 
@@ -121,18 +141,22 @@ Key decisions:
 
 A file-by-file walkthrough is in [docs/CODE_GUIDE.md](docs/CODE_GUIDE.md).
 
+[↑ Back to contents](#contents)
+
 ## What I deliberately left out
 
 The brief is bigger than six hours on purpose, so these were choices, not oversights.
 
-- Bypassing bot protection. Wachtell (Cloudflare) and Davis Polk (an edge server that rejects non-browser connections) block automated clients. I could have got through with a headless browser or by routing requests through curl, but that would work against each firm’s clear intent. They’re marked BLOCKED, with evidence, instead.
-- A web app. A server, logins and hosting would add setup and failure points for a report that’s read once a week. A single HTML file opens anywhere and can be emailed. If Pinpoint later wants it live and shared, the same database can sit behind a small web app.
-- LinkedIn and news scraping. LinkedIn’s terms forbid it, and news coverage is patchy. Firm directories are the most reliable public source of who is where.
-- AI (LLM) parsing as the main extraction method. Each site’s own data is structured, so plain parsing is cheaper, predictable, and can’t invent partners. LLMs make more sense later for messy sources such as press releases.
+- Bypassing bot protection. Wachtell (Cloudflare) and Davis Polk (an edge server that rejects non-browser connections) block automated clients. I could have got through with a headless browser or by routing requests through curl, but that would work against each firm's clear intent. They're marked BLOCKED, with evidence, instead.
+- A web app. A server, logins and hosting would add setup and failure points for a report that's read once a week. A single HTML file opens anywhere and can be emailed. If Pinpoint later wants it live and shared, the same database can sit behind a small web app.
+- LinkedIn and news scraping. LinkedIn's terms forbid it, and news coverage is patchy. Firm directories are the most reliable public source of who is where.
+- AI (LLM) parsing as the main extraction method. Each site's own data is structured, so plain parsing is cheaper, predictable, and can't invent partners. LLMs make more sense later for messy sources such as press releases.
 - Covering all 15 firms. I prioritised a reliable pipeline over coverage: 3 working firms, 3 documented as blocked, 1 out of scope, and the rest listed as not yet assessed. Adding a firm is a small, contained change (see [How it holds up as it grows](#how-it-holds-up-as-it-grows-and-what-id-change-first)).
-- Narrowing Cravath to M&A only. Cravath’s site only offers “Corporate”, which includes capital markets and finance partners. Its practice tags on individual profiles could narrow this later.
+- Narrowing Cravath to M&A only. Cravath's site only offers "Corporate", which includes capital markets and finance partners. Its practice tags on individual profiles could narrow this later.
 - Notifications, opportunity signals and per-partner briefings. Alerts and a review queue are in [What I'd change first](#how-it-holds-up-as-it-grows-and-what-id-change-first); signals and briefings are in [How this feeds Future Recruiter AI](#how-this-feeds-future-recruiter-ai). The stored events and history already support them, but each one is a feature on top of a core that had to be right first.
 - Postgres, cloud hosting, CRM integration, multiple users. None are needed at this scale. SQLite is a single file with no setup. These become worth it once multiple people use Orbit daily.
+
+[↑ Back to contents](#contents)
 
 ## How it holds up as it grows, and what I'd change first
 
@@ -155,6 +179,8 @@ The brief is bigger than six hours on purpose, so these were choices, not oversi
 4. **Incremental fetching.** Some firms publish sitemaps with last-modified dates per profile (Wachtell does), so only changed profiles would need fetching. That's gentler on sites and faster at scale.
 5. **Legitimate routes for blocked firms:** ask the firm for access, license data from a provider to fill gaps, or track lateral-hire announcements in firms' public news pages.
 6. **Postgres and a small web view,** once several people use Orbit daily rather than reading one weekly report.
+
+[↑ Back to contents](#contents)
 
 ## Responsible scraping and data protection
 
@@ -186,7 +212,9 @@ In production, the route for blocked firms would be to ask for access, or to lic
 - **Nothing personal in this repository:** collected data and generated reports stay local in gitignored `data/` and `reports/` folders. Test fixtures and the demo use fictional people. The demo runs in a separate temporary database and carries a visible "fictional data" banner, so demo data can never be mixed with real data.
 - **No secrets in code:** credentials or webhook URLs would come from environment variables, and no API keys are committed.
 
-**Before production use** I'd add a short legitimate-interests assessment under UK GDPR, a retention limit (for example, deleting observations older than 12 months), a retention limit for the raw cache (e.g. delete after 7 days) or stripping contact fields before caching, and a simple way to remove a person's records on request. (I'm not a lawyer; this would need proper review.)
+**Before production use** I'd add a short legitimate-interests assessment under UK GDPR, retention limits (for example, deleting observations older than 12 months, and deleting the raw cache after 7 days or stripping contact fields before caching), and a simple way to remove a person's records on request. (I'm not a lawyer; this would need proper review.)
+
+[↑ Back to contents](#contents)
 
 ## Tech stack and why
 
@@ -201,6 +229,8 @@ In production, the route for blocked firms would be to ask for access, or to lic
 - **sqlite3** (standard library): one-file database, no server, no ORM.
 - **pytest**: offline tests against fictional fixtures.
 
+[↑ Back to contents](#contents)
+
 ## How this feeds Future Recruiter AI
 
 Orbit is a first data source for Future Recruiter AI, not a standalone tool. The weekly snapshots and change events are the kind of clean, structured, dated data an AI-first recruitment CRM needs.
@@ -212,3 +242,5 @@ Orbit is a first data source for Future Recruiter AI, not a standalone tool. The
 - **Clean foundations for the CRM.** The same normalisation and duplicate-matching rules (stable IDs, name normalisation, flagging rather than guessing uncertain matches) are what a migration away from the current CRM will need.
 
 AI fits on top of this clean data: drafting briefings, suggesting likely movers and parsing messy sources like press releases. The core tracking stays deterministic, so nothing in the CRM is invented.
+
+[↑ Back to contents](#contents)
