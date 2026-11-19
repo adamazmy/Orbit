@@ -2,6 +2,8 @@
 
 Tracks Corporate/M&A partners at top law firms each week and reports who joined, left, or moved between firms.
 
+**▶ [Watch the video walkthrough on Loom](https://www.loom.com/share/9707a2e6cddc429c92057370ed53d1b7)**
+
 ![Orbit demo report, built from fictional data](docs/images/demo.png)
 
 ## Contents
