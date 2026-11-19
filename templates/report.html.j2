@@ -1,6 +1,7 @@
 <!doctype html>
-{# Orbit weekly report. Rendered by orbit/report.py; everything inline so the
-   file works offline and by email. All values are autoescaped. #}
+{# Orbit weekly report, laid out as a dashboard. Rendered by orbit/report.py;
+   everything inline so the file works offline and by email. All values are
+   autoescaped. Order: overview, changes, data health, partners. #}
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -8,179 +9,314 @@
 <title>Orbit report{% if run %} – {{ run.date }}{% endif %}</title>
 <style>
   :root {
-    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66;
-    --line: #e2e1dc; --accent: #2457c5; --ok: #1e7a3c; --warn: #9a5b00;
-    --bad: #b3261e; --blocked: #5b5b5b; --review-bg: #fff5df; --banner-bg: #3b2a8f;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #161615; --panel: #1f1f1d; --text: #ecebe6; --muted: #a3a29b;
-      --line: #34332f; --accent: #8fb0ff; --ok: #6fcf8e; --warn: #f2b45a;
-      --bad: #ff8a80; --blocked: #b0b0ab; --review-bg: #3a2f14; --banner-bg: #4b3bb0;
-    }
+    color-scheme: light;
+    --bg: #f7f4ee; --panel: #fffdf9; --text: #14213d; --muted: #5d6577;
+    --line: #e5dfd3; --accent: #0f766e; --accent-soft: #e3f1ef;
+    --joined: #2f7d4f; --joined-soft: #e6f2ea; --left: #b0432f; --left-soft: #f8e7e2;
+    --neutral: #4d5b73; --neutral-soft: #ebeef3; --review: #9a5b00; --review-soft: #fbf0d9;
+    --banner: #14213d;
+    --radius: 12px;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
-  .banner { background: var(--banner-bg); color: #fff; text-align: center;
-            padding: 10px 16px; font-weight: 600; letter-spacing: .02em; }
-  h1 { margin: 0 0 4px; font-size: 1.6rem; }
-  h2 { margin: 0 0 12px; font-size: 1.2rem; }
-  h3 { margin: 20px 0 8px; font-size: 1rem; }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-            padding: 20px; margin-top: 20px; }
+         font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .banner { background: var(--banner); color: #fff; text-align: center; font-weight: 600;
+            padding: 12px 16px; letter-spacing: .02em; }
+  .banner::before { content: "●"; color: #5eead4; margin-right: 8px; }
+
+  /* Header and anchor navigation */
+  .top { background: var(--panel); border-bottom: 1px solid var(--line);
+         position: sticky; top: 0; z-index: 10; }
+  .top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px;
+               padding-top: 14px; padding-bottom: 14px; }
+  .brand { font-weight: 700; font-size: 1.15rem; letter-spacing: .01em; }
+  .brand span { color: var(--muted); font-weight: 500; }
+  nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+  nav a { color: var(--text); text-decoration: none; padding: 6px 12px; border-radius: 999px;
+          font-size: .92rem; }
+  nav a:hover, nav a:focus-visible { background: var(--accent-soft); color: var(--accent); }
+
+  main.wrap { padding-top: 28px; padding-bottom: 56px; }
+  section { scroll-margin-top: 80px; margin-top: 36px; }
+  section:first-child { margin-top: 0; }
+  h1 { margin: 0; font-size: 1.6rem; }
+  h2 { margin: 0; font-size: 1.25rem; }
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+                  margin-bottom: 14px; }
   .muted { color: var(--muted); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
-  .chips li { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .note { background: var(--review-soft); color: #5c3a00; border-radius: 8px;
+          padding: 10px 14px; margin: 0 0 12px; font-size: .92rem; }
+  .empty { color: var(--muted); padding: 18px 20px; margin: 0; }
+  .baseline { margin: 0 0 10px; color: var(--muted); font-size: .92rem; }
+
+  /* KPI cards */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;
+          margin-top: 16px; }
+  .kpi { padding: 18px 20px; }
+  .kpi .label { color: var(--muted); font-size: .85rem; }
+  .kpi .value { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-top: 4px; }
+  .kpi .value small { font-size: 1rem; color: var(--muted); font-weight: 500; }
+  .kpi .sub { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+  .kpi.accent { border-top: 3px solid var(--accent); }
+
+  /* Badges */
+  .badge { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .76rem;
+           font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+           background: var(--neutral-soft); color: var(--neutral); }
+  .badge.MOVED { background: var(--accent); color: #fff; }
+  .badge.JOINED { background: var(--joined-soft); color: var(--joined); }
+  .badge.LEFT { background: var(--left-soft); color: var(--left); }
+  .badge.POSSIBLE_MOVE, .badge.LISTED_AT_TWO_FIRMS { background: var(--review-soft); color: var(--review); }
+  .status { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .82rem;
+            font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+  .status.OK { background: var(--accent-soft); color: var(--accent); }
+  .status.SUSPECT { background: var(--review-soft); color: var(--review); }
+  .status.FAILED { background: var(--left-soft); color: var(--left); }
+  .status.BLOCKED { background: var(--neutral-soft); color: var(--neutral); }
+  .status.SKIPPED, .status.OUT_OF_SCOPE { color: var(--muted); border-color: var(--line); }
+  .status.NOT_ASSESSED { color: var(--muted); border: 1px dashed var(--line); }
+
+  /* Change cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .card .name { font-weight: 600; font-size: 1.02rem; }
+  .card .name a { color: var(--text); }
+  .card .where { color: var(--text); }
+  .card .detail { color: var(--muted); font-size: .9rem; }
+  .card.review { border-color: #f0dcb4; background: #fffaf0; }
+  h3 { font-size: 1rem; margin: 24px 0 4px; }
+  .review-intro { margin: 0 0 12px; color: var(--muted); font-size: .92rem; }
+
+  /* Data health */
+  .coverage { font-weight: 600; }
+  .health-row { border-top: 1px solid var(--line); }
+  .health-head + .health-row { border-top: 0; }
+  .health-grid, .health-head { display: grid; align-items: center; gap: 6px 16px;
+       grid-template-columns: minmax(0, 2.2fr) minmax(0, 2fr) 90px 130px 24px; padding: 12px 18px; }
+  .health-head { color: var(--muted); font-size: .82rem; font-weight: 600;
+                 border-bottom: 1px solid var(--line); padding-top: 10px; padding-bottom: 10px; }
+  summary.health-grid { cursor: pointer; list-style: none; }
+  summary.health-grid::-webkit-details-marker { display: none; }
+  summary.health-grid::after { content: "▸"; color: var(--muted); justify-self: end;
+                               transition: transform .15s; }
+  details[open] > summary.health-grid::after { transform: rotate(90deg); }
+  summary.health-grid:hover { background: #fbf8f2; }
+  .health-detail { padding: 0 18px 14px; color: var(--muted); font-size: .9rem; }
+  .health-detail p { margin: 0 0 4px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Partners */
+  .firm-counts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
+  .firm-counts button { font: inherit; font-size: .9rem; cursor: pointer; color: var(--text);
+       background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; }
+  .firm-counts button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .firm-counts .stale { color: var(--review); font-size: .85rem; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; border-bottom: 1px solid var(--line); }
+  .filters input, .filters select { font: inherit; padding: 8px 10px; border-radius: 8px;
+       border: 1px solid var(--line); background: #fff; color: var(--text); min-width: 0; }
+  .filters input { flex: 1 1 240px; }
+  .filters select { flex: 0 1 190px; }
+  .table-scroll { max-height: 70vh; overflow: auto; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line);
-           vertical-align: top; }
-  th { font-size: .85rem; color: var(--muted); font-weight: 600; }
-  .table-wrap { overflow-x: auto; }
-  .tag { display: inline-block; border-radius: 4px; padding: 1px 8px; font-size: .8rem;
-         font-weight: 600; white-space: nowrap; border: 1px solid currentColor; }
-  .tag.MOVED, .tag.JOINED { color: var(--accent); }
-  .tag.LEFT { color: var(--bad); }
-  .tag.OFFICE_CHANGED, .tag.TITLE_CHANGED { color: var(--muted); }
-  .tag.REVIEW, .tag.SUSPECT { color: var(--warn); }
-  .tag.OK { color: var(--ok); }
-  .tag.FAILED { color: var(--bad); }
-  .tag.BLOCKED, .tag.SKIPPED, .tag.OUT-OF-SCOPE, .tag.NOT-ASSESSED { color: var(--blocked); }
-  .review { background: var(--review-bg); border-radius: 8px; padding: 12px 16px; margin-top: 16px; }
-  .review p { margin: 0 0 8px; }
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-  .filters input, .filters select { font: inherit; padding: 6px 8px; border-radius: 6px;
-           border: 1px solid var(--line); background: var(--bg); color: var(--text); }
-  .filters input { flex: 1 1 220px; }
-  a { color: var(--accent); }
-  .empty { color: var(--muted); font-style: italic; }
-  .stale-note { color: var(--warn); font-size: .9rem; }
-  p.stale-note { background: var(--review-bg); border-radius: 6px; padding: 8px 12px; margin: 0 0 12px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { position: sticky; top: 0; background: var(--panel); color: var(--muted);
+             font-size: .82rem; font-weight: 600; box-shadow: 0 1px 0 var(--line); z-index: 1; }
+  tbody tr:hover { background: #fbf8f2; }
+  #partner-rows td:nth-child(2) { white-space: nowrap; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 40px; }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    nav { margin-left: 0; }
+    .health-head { display: none; }
+    .health-grid { grid-template-columns: minmax(0, 1fr) auto; }
+    summary.health-grid { position: relative; padding-right: 36px; }
+    summary.health-grid::after { position: absolute; right: 16px; top: 14px; }
+    .health-grid .num::before { content: attr(data-label) ": "; color: var(--muted); }
+    .health-grid .status { justify-self: start; }
+    .cards { grid-template-columns: 1fr; }
+    .kpi .value { font-size: 1.7rem; }
+  }
 </style>
 </head>
 <body>
 {% if banner %}<div class="banner" role="note">{{ banner }}</div>{% endif %}
-<main>
-<header>
-  <h1>Orbit: partner market report</h1>
-  {% if run %}
-  <p class="muted">Run {{ run.id }} · {{ run.date }} · {{ firms | length }} firm{{ "s" if firms | length != 1 }} tracked · generated {{ generated_at }}</p>
-  <ul class="chips" aria-label="Partners per firm">
-    {% for firm in firms %}
-    <li>{{ firm.name }}: <strong>{{ firm.count }}</strong> partners
-      {%- if firm.last_good_run %} <span class="stale-note">(last good, run {{ firm.last_good_run }})</span>{% endif %}
-      {%- if firm.status != "OK" %} · <span class="tag {{ firm.status }}">{{ firm.status }}</span>
-        {%- if firm.last_good_run %}<span class="stale-note">: this run returned {{ firm.this_run_count }}</span>{% endif %}
-      {%- endif %}</li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="muted">No runs yet. Run <code>orbit run</code> to collect the first snapshot.</p>
-  {% endif %}
+<header class="top">
+  <div class="wrap">
+    <div class="brand">Orbit <span>· Partner market report</span></div>
+    <nav aria-label="Sections">
+      <a href="#overview">Overview</a>
+      {% if run %}<a href="#changes">Changes</a>
+      <a href="#partners">Partners</a>{% endif %}
+      <a href="#health">Data health</a>
+    </nav>
+  </div>
 </header>
 
+<main class="wrap">
+<section id="overview" aria-labelledby="overview-heading">
+  <h1 id="overview-heading">Overview</h1>
+  {% if run %}
+  <p class="muted" style="margin:4px 0 0">Run {{ run.id }} · {{ run.date }}</p>
+  <div class="kpis">
+    <div class="panel kpi accent">
+      <div class="label">Partners tracked</div>
+      <div class="value num">{{ kpis.partners }}</div>
+      <div class="sub">across {{ kpis.partner_firms }} firm{{ "s" if kpis.partner_firms != 1 }}</div>
+    </div>
+    <div class="panel kpi">
+      <div class="label">Firms collected</div>
+      <div class="value num">{{ kpis.collected }} <small>/ {{ kpis.configured }}</small></div>
+      <div class="sub">collected this run / configured</div>
+    </div>
+    <div class="panel kpi">
+      <div class="label">Changes since last run</div>
+      <div class="value num">{{ kpis.changes }}</div>
+      <div class="sub">{% if kpis.review %}+ {{ kpis.review }} to review{% else %}nothing to review{% endif %}</div>
+    </div>
+    <div class="panel kpi">
+      <div class="label">Last updated</div>
+      <div class="value" style="font-size:1.35rem;margin-top:10px">{{ kpis.updated }}</div>
+      <div class="sub">run {{ run.id }}</div>
+    </div>
+  </div>
+  {% else %}
+  <p class="panel empty">No runs yet. Run <code>orbit run</code> to collect the first snapshot.</p>
+  {% endif %}
+</section>
+
 {% if run %}
-<section aria-labelledby="changes-heading">
-  <h2 id="changes-heading">This week's changes</h2>
+<section id="changes" aria-labelledby="changes-heading">
+  <div class="section-head">
+    <h2 id="changes-heading">Changes since last run</h2>
+    <span class="muted">compared with each firm's last good snapshot</span>
+  </div>
   {% for firm in baseline %}
-  <p class="muted">{{ firm }}: baseline recorded, changes appear from the next run.</p>
+  <p class="baseline">{{ firm }}: baseline recorded, changes appear from the next run.</p>
   {% endfor %}
   {% if changes %}
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Change</th><th>Partner</th><th>Firm</th><th>Details</th></tr></thead>
-    <tbody>
+  <div class="cards">
     {% for change in changes %}
-      <tr>
-        <td><span class="tag {{ change.type }}">{{ change.label }}</span></td>
-        <td>{% if change.link %}<a href="{{ change.link }}" rel="noopener">{{ change.name }}</a>{% else %}{{ change.name }}{% endif %}</td>
-        <td>{{ change.where }}</td>
-        <td>{{ change.detail or "" }}</td>
-      </tr>
+    <article class="panel card">
+      <div><span class="badge {{ change.type }}">{{ change.badge }}</span></div>
+      <div class="name">{% if change.link %}<a href="{{ change.link }}" rel="noopener">{{ change.name }}</a>{% else %}{{ change.name }}{% endif %}</div>
+      <div class="where">{{ change.where }}</div>
+      {% if change.detail %}<div class="detail">{{ change.detail }}</div>{% endif %}
+    </article>
     {% endfor %}
-    </tbody>
-  </table>
   </div>
-  {% elif not baseline %}
-  <p class="empty">No changes since the last run.</p>
+  {% elif monitored %}
+  <p class="panel empty">No changes detected across the {{ monitored }} monitored firm{{ "s" if monitored != 1 }}.</p>
   {% endif %}
 
   {% if review %}
-  <div class="review">
-    <h3>Needs review <span class="muted">({{ review | length }})</span></h3>
-    <p class="muted">Possible matches the system won't assert on its own. Check them before using them.</p>
+  <h3>Needs review <span class="muted">({{ review | length }})</span></h3>
+  <p class="review-intro">Possible matches the system won't assert on its own. Check them before relying on them.</p>
+  <div class="cards">
     {% for item in review %}
-    <p><span class="tag REVIEW">Needs review: {{ item.label }}</span>
-       <strong>{% if item.link %}<a href="{{ item.link }}" rel="noopener">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}</strong>,
-       {{ item.where }}. {{ item.detail }}</p>
+    <article class="panel card review">
+      <div><span class="badge {{ item.type }}">{{ item.badge }}</span> <span class="muted">{{ item.label }}</span></div>
+      <div class="name">{% if item.link %}<a href="{{ item.link }}" rel="noopener">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}</div>
+      <div class="where">{{ item.where }}</div>
+      <div class="detail">{{ item.detail }}</div>
+    </article>
     {% endfor %}
   </div>
   {% endif %}
 </section>
 {% endif %}
 
-<section aria-labelledby="health-heading">
-  <h2 id="health-heading">Firm health</h2>
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Firm</th><th>Status</th><th>Partners</th><th>Reason</th></tr></thead>
-    <tbody>
+<section id="health" aria-labelledby="health-heading">
+  <div class="section-head">
+    <h2 id="health-heading">Data health</h2>
+    <span class="coverage">{{ coverage }}</span>
+  </div>
+  <div class="panel">
+    <div class="health-head" aria-hidden="true">
+      <span>Firm</span><span>Status</span><span>Partners</span><span>Last collected</span><span></span>
+    </div>
     {% for row in health %}
-      <tr>
-        <td>{{ row.name }}</td>
-        <td><span class="tag {{ row.status | replace(' ', '-') }}">{{ row.status }}</span></td>
-        <td>{{ row.count if row.count is not none else "—" }}</td>
-        <td>{{ row.reason }}</td>
-      </tr>
+    {% set cells %}
+      <span>{{ row.name }}</span>
+      <span><span class="status {{ row.status }}">{{ row.label }}</span></span>
+      <span class="num" data-label="Partners">{{ row.count if row.count is not none else "—" }}</span>
+      <span class="num" data-label="Last collected">{{ row.last_success or "—" }}</span>
+    {% endset %}
+    {% if row.reason or row.evidence_url %}
+    <details class="health-row">
+      <summary class="health-grid">{{ cells }}</summary>
+      <div class="health-detail">
+        {% if row.reason %}<p>{{ row.reason }}</p>{% endif %}
+        {% if row.evidence_url %}<p><a href="{{ row.evidence_url }}" rel="noopener">View evidence</a></p>{% endif %}
+      </div>
+    </details>
+    {% else %}
+    <div class="health-row health-grid">{{ cells }}<span></span></div>
+    {% endif %}
     {% endfor %}
-    </tbody>
-  </table>
   </div>
 </section>
 
 {% if run %}
-<section aria-labelledby="partners-heading">
-  <h2 id="partners-heading">All partners <span class="muted" id="partner-count">({{ partners | length }})</span></h2>
-  {% for item in stale %}
-  <p class="stale-note" role="note"><strong>{{ item.name }}:</strong> {{ item.note }}.</p>
-  {% endfor %}
-  <div class="filters">
-    <input id="search" type="search" placeholder="Search name or title" aria-label="Search partners">
-    <select id="firm-filter" aria-label="Filter by firm"><option value="">All firms</option>{% for v in filters.firms %}<option>{{ v }}</option>{% endfor %}</select>
-    <select id="office-filter" aria-label="Filter by office"><option value="">All offices</option>{% for v in filters.offices %}<option>{{ v }}</option>{% endfor %}</select>
-    <select id="practice-filter" aria-label="Filter by practice"><option value="">All practices</option>{% for v in filters.practices %}<option>{{ v }}</option>{% endfor %}</select>
+<section id="partners" aria-labelledby="partners-heading">
+  <div class="section-head">
+    <h2 id="partners-heading">Partners</h2>
+    <span class="muted" id="partner-count">{{ partners | length }} shown</span>
   </div>
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Name</th><th>Firm</th><th>Title</th><th>Offices</th><th>Practices</th></tr></thead>
-    <tbody id="partner-rows">
-    {% for p in partners %}
-      <tr data-firm="{{ p.firm }}" data-offices="|{{ p.offices | join('|') }}|" data-practices="|{{ p.practices | join('|') }}|">
-        <td><a href="{{ p.url }}" rel="noopener">{{ p.name }}</a></td>
-        <td>{{ p.firm }}</td>
-        <td>{{ p.title }}</td>
-        <td>{{ p.offices | join(", ") }}</td>
-        <td>{{ p.practices | join(", ") }}</td>
-      </tr>
+  <ul class="firm-counts" aria-label="Partners per firm">
+    {% for firm in firms %}
+    <li><button type="button" data-firm="{{ firm.name }}" aria-pressed="false">{{ firm.name }} · <strong class="num">{{ firm.count }}</strong>
+      {%- if firm.last_good_run %} <span class="stale">(last good, run {{ firm.last_good_run }}) · {{ firm.status | title }}: this run returned {{ firm.this_run_count }}</span>{% endif %}</button></li>
     {% endfor %}
-    </tbody>
-  </table>
+  </ul>
+  {% for item in stale %}
+  <p class="note" role="note"><strong>{{ item.name }}:</strong> {{ item.note }}.</p>
+  {% endfor %}
+  <div class="panel">
+    <div class="filters">
+      <input id="search" type="search" placeholder="Search name or title" aria-label="Search partners">
+      <select id="firm-filter" aria-label="Filter by firm"><option value="">All firms</option>{% for v in filters.firms %}<option>{{ v }}</option>{% endfor %}</select>
+      <select id="office-filter" aria-label="Filter by office"><option value="">All offices</option>{% for v in filters.offices %}<option>{{ v }}</option>{% endfor %}</select>
+      <select id="practice-filter" aria-label="Filter by practice"><option value="">All practices</option>{% for v in filters.practices %}<option>{{ v }}</option>{% endfor %}</select>
+    </div>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Name</th><th>Firm</th><th>Title</th><th>Offices</th><th>Practices</th></tr></thead>
+      <tbody id="partner-rows">
+      {% for p in partners %}
+        <tr data-firm="{{ p.firm }}" data-offices="|{{ p.offices | join('|') }}|" data-practices="|{{ p.practices | join('|') }}|">
+          <td><a href="{{ p.url }}" rel="noopener">{{ p.name }}</a></td>
+          <td>{{ p.firm }}</td>
+          <td>{{ p.title }}</td>
+          <td>{{ p.offices | join(", ") }}</td>
+          <td>{{ p.practices | join(", ") }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p id="no-matches" class="empty" hidden>No partners match these filters.</p>
   </div>
-  <p id="no-matches" class="empty" hidden>No partners match these filters.</p>
 </section>
 {% endif %}
+
+<footer>Generated {{ generated_at }} by Orbit. Source links go to each firm's public profile page.</footer>
 </main>
 
 {% if run %}
 <script>
-  // Filters the partner table in place: text search plus three drop-downs.
+  // Filters the partner table in place: text search, three drop-downs, and the firm buttons.
   (function () {
     var rows = Array.prototype.slice.call(document.querySelectorAll("#partner-rows tr"));
     var search = document.getElementById("search");
     var firm = document.getElementById("firm-filter");
     var office = document.getElementById("office-filter");
     var practice = document.getElementById("practice-filter");
+    var buttons = Array.prototype.slice.call(document.querySelectorAll(".firm-counts button"));
     function apply() {
       var text = search.value.trim().toLowerCase();
       var shown = 0;
@@ -192,9 +328,16 @@
         row.hidden = !visible;
         if (visible) { shown += 1; }
       });
-      document.getElementById("partner-count").textContent = "(" + shown + " of " + rows.length + ")";
+      buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.firm === firm.value)); });
+      document.getElementById("partner-count").textContent = shown + " of " + rows.length + " shown";
       document.getElementById("no-matches").hidden = shown !== 0;
     }
+    buttons.forEach(function (b) {
+      b.addEventListener("click", function () {
+        firm.value = firm.value === b.dataset.firm ? "" : b.dataset.firm;
+        apply();
+      });
+    });
     [search, firm, office, practice].forEach(function (el) { el.addEventListener("input", apply); });
   })();
 </script>

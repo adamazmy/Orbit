@@ -7,10 +7,16 @@ from pathlib import Path
 import pytest
 
 from orbit import demo, store
-from orbit.cli import save_snapshot
+from orbit.cli import record_events, save_snapshot
 from orbit.demo import DEMO_BANNER, demo_config, run_demo, seed_demo_data
-from orbit.models import PartnerRecord
-from orbit.report import build_report_data, render, write_report
+from orbit.models import FirmConfig, OrbitConfig, PartnerRecord
+from orbit.report import (
+    build_report_data,
+    coverage_summary,
+    health_rows,
+    render,
+    write_report,
+)
 
 REAL_DB = Path(__file__).resolve().parent.parent / "data" / "orbit.db"
 
@@ -38,12 +44,17 @@ def demo_html(conn):
 
 
 def test_sections_appear_in_order(demo_html):
-    text = visible_text(demo_html)
+    # Overview, changes, data health, then the partner table.
     positions = [
-        text.index(heading)
-        for heading in ("This week's changes", "Firm health", "All partners")
+        demo_html.index(f'<section id="{section}"')
+        for section in ("overview", "changes", "health", "partners")
     ]
     assert positions == sorted(positions)
+
+
+def test_nav_links_to_every_section(demo_html):
+    for section in ("overview", "changes", "partners", "health"):
+        assert f'href="#{section}"' in demo_html
 
 
 def test_moves_come_first_then_joins_and_departures(conn):
@@ -66,9 +77,9 @@ def test_review_flags_are_labelled_and_kept_apart(conn):
     data = build_report_data(conn, demo_config())
     assert [r["label"] for r in data["review"]] == ["Possible move"]
     assert all(c["type"] != "POSSIBLE_MOVE" for c in data["changes"])
-    assert "Needs review: Possible move" in visible_text(
-        render(data | {"banner": None})
-    )
+    text = visible_text(render(data | {"banner": None}))
+    assert "Needs review (1)" in text
+    assert "Needs review Possible move Janet Doe" in text
 
 
 def test_health_lists_suspect_and_config_blocked_firms(conn):
@@ -156,8 +167,10 @@ def test_demo_has_banner_and_every_kind_of_change(tmp_path, monkeypatch):
         "Possible move",
         "Joined",
         "Left",
-        "Office change",
-        "SUSPECT",
+        "Office",
+        "Needs review",
+        "Suspect (showing last good data)",
+        "Blocked (unable to collect)",
     ):
         assert label in text
 
@@ -206,15 +219,9 @@ def test_suspect_firm_is_labelled_in_header_and_partner_table(conn):
     assert data["stale"] == [{"name": "Cedar Row LLP", "note": SUSPECT_NOTE}]
 
     text = visible_text(render(data | {"banner": None}))
-    header, partners = (
-        text.split("This week's changes")[0],
-        text.split("All partners")[1],
-    )
-    chip = (
-        "Cedar Row LLP: 10 partners (last good, run 1) · SUSPECT: this run returned 2"
-    )
-    # visible_text puts a space where each tag was; the page has none before the colon.
-    assert chip in header.replace(" :", ":")
+    partners = text.split("Partners", 2)[2]  # after the nav link and the KPI label
+    chip = "Cedar Row LLP · 10 (last good, run 1) · Suspect: this run returned 2"
+    assert chip in partners
     assert SUSPECT_NOTE in partners
 
 
@@ -257,3 +264,104 @@ def test_failed_firm_is_labelled_too(conn):
         }
     ]
     assert [p["name"] for p in data["partners"]] == ["Jane Example"]
+
+
+# --- Dashboard: coverage, monitored firms, recruiter wording -------------------
+
+COVERAGE_CONFIG = OrbitConfig(
+    user_agent="test",
+    firms=[
+        FirmConfig(id="a", name="A", enabled=True, status="ACTIVE"),
+        FirmConfig(id="b", name="B", enabled=True, status="ACTIVE"),
+        FirmConfig(id="c", name="C", status="BLOCKED", reason="robots.txt"),
+        FirmConfig(id="d", name="D", status="BLOCKED", reason="challenge"),
+        FirmConfig(id="e", name="E", status="OUT_OF_SCOPE", reason="litigation"),
+        FirmConfig(id="f", name="F", status="NOT_ASSESSED", reason="later"),
+    ],
+)
+
+
+def test_coverage_summary_is_computed_from_config_and_run():
+    firm_runs = {
+        "a": {"status": "OK", "partner_count": 5, "message": ""},
+        "b": {"status": "BLOCKED", "partner_count": 0, "message": "HTTP 403"},
+    }
+    health = health_rows(COVERAGE_CONFIG, firm_runs, {}, {})
+    assert coverage_summary(health) == (
+        "1 collected · 3 blocked · 1 out of scope · 1 not yet assessed"
+    )
+
+
+def test_demo_coverage_summary_and_kpis(conn):
+    seed_demo_data(conn)
+    data = build_report_data(conn, demo_config())
+    assert data["coverage"] == "2 collected · 1 suspect · 1 blocked"
+    kpis = data["kpis"]
+    assert (kpis["partners"], kpis["partner_firms"]) == (29, 3)
+    assert (kpis["collected"], kpis["configured"]) == (2, 4)
+    assert (kpis["changes"], kpis["review"]) == (6, 1)
+    assert "2 collected · 1 suspect · 1 blocked" in visible_text(
+        render(data | {"banner": None})
+    )
+
+
+def two_quiet_runs(conn, second_run_firms):
+    """Run 1 collects Alder; run 2 collects `second_run_firms`, with no changes at Alder."""
+    store.upsert_firms(conn, demo_config().firms)
+    first = store.create_run(conn)
+    save_snapshot(conn, first, "alder", [make_partner("alder", "Jane Example")])
+    record_events(conn, first)
+    second = store.create_run(conn)
+    for firm in second_run_firms:
+        save_snapshot(conn, second, firm, [make_partner(firm, "Jane Example")])
+    record_events(conn, second)
+
+
+def test_no_changes_names_the_monitored_firm_count(conn):
+    two_quiet_runs(conn, ["alder"])
+    text = visible_text(
+        render(build_report_data(conn, demo_config()) | {"banner": None})
+    )
+    assert "No changes detected across the 1 monitored firm." in text
+
+
+def test_baseline_firms_are_not_counted_as_monitored(conn):
+    # Birch's first snapshot is a baseline: no change could show for it yet.
+    two_quiet_runs(conn, ["alder", "birch"])
+    data = build_report_data(conn, demo_config())
+    assert data["monitored"] == 1
+    text = visible_text(render(data | {"banner": None}))
+    assert "Birch Lane LLP: baseline recorded" in text
+
+
+def test_health_uses_recruiter_wording_with_details(conn):
+    seed_demo_data(conn)
+    health = {r["name"]: r for r in build_report_data(conn, demo_config())["health"]}
+    assert health["Alder & Finch LLP"]["label"] == "Collected"
+    assert health["Alder & Finch LLP"]["last_success"] == "19 Nov 2026"
+    assert health["Cedar Row LLP"]["label"] == "Suspect (showing last good data)"
+    assert health["Cedar Row LLP"]["last_success"] == "12 Nov 2026"
+    assert health["Dogwood Hart LLP"]["label"] == "Blocked (unable to collect)"
+
+
+def test_evidence_link_appears_in_the_row_details():
+    config = OrbitConfig(
+        user_agent="test",
+        firms=[
+            FirmConfig(
+                id="x",
+                name="X LLP",
+                status="BLOCKED",
+                reason="Cloudflare challenge",
+                evidence_url="https://example.com/evidence.txt",
+            )
+        ],
+    )
+    html = render(
+        {"run": None, "generated_at": "", "banner": None}
+        | {"health": (health := health_rows(config, {}, {}, {}))}
+        | {"coverage": coverage_summary(health)}
+    )
+    details = html.split("<details", 1)[1].split("</details>", 1)[0]
+    assert "Cloudflare challenge" in details
+    assert 'href="https://example.com/evidence.txt"' in details

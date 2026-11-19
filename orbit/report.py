@@ -2,11 +2,12 @@
 
 Reads one run from the database and renders templates/report.html.j2 into a
 single HTML file (inline CSS and a little vanilla JS, nothing from a CDN), so
-it can be emailed or opened offline. Sections, in order:
-1. header: run date, firms tracked, partners per firm;
-2. this week's changes (MOVED first), with review flags kept apart;
-3. firm health, including firms that are blocked or out of scope in config;
-4. a searchable table of every tracked partner.
+it can be emailed or opened offline. A dashboard, in order:
+1. overview: KPI cards (partners tracked, firms collected, changes, last update);
+2. changes since the last run (MOVED first), with review flags as their own cards;
+3. data health: every firm in config, in recruiter wording, with the technical
+   reason in an expandable row, and a coverage summary;
+4. a searchable table of every tracked partner, with per-firm counts.
 
 The data work (grouping, wording, filter options) happens here in Python, so
 the template only lays things out.
@@ -34,10 +35,37 @@ STALE_REASONS = {
     "FAILED": "this run failed",
     "BLOCKED": "this run was blocked",
 }
-CONFIG_STATUS_LABELS = {
-    "BLOCKED": "BLOCKED",
-    "OUT_OF_SCOPE": "OUT OF SCOPE",
-    "NOT_ASSESSED": "NOT ASSESSED",
+# Badge text on each change card.
+BADGES = {
+    "MOVED": "Moved",
+    "JOINED": "Joined",
+    "LEFT": "Left",
+    "OFFICE_CHANGED": "Office",
+    "TITLE_CHANGED": "Title",
+    "POSSIBLE_MOVE": "Needs review",
+    "LISTED_AT_TWO_FIRMS": "Needs review",
+}
+# Data health in recruiter wording, in display order. Run statuses and config
+# statuses share one list; the technical reason stays in each row's details.
+STATUS_LABELS = {
+    "OK": "Collected",
+    "SUSPECT": "Suspect",
+    "FAILED": "Failed",
+    "BLOCKED": "Blocked (unable to collect)",
+    "SKIPPED": "Not collected (no adapter)",
+    "OUT_OF_SCOPE": "Out of scope",
+    "NOT_ASSESSED": "Not yet assessed",
+}
+# Added to Suspect / Failed when the report falls back to an earlier list.
+SHOWING_LAST_GOOD = " (showing last good data)"
+COVERAGE_WORDS = {
+    "OK": "collected",
+    "SUSPECT": "suspect",
+    "FAILED": "failed",
+    "BLOCKED": "blocked",
+    "SKIPPED": "not collected",
+    "OUT_OF_SCOPE": "out of scope",
+    "NOT_ASSESSED": "not yet assessed",
 }
 
 
@@ -67,10 +95,12 @@ def build_report_data(conn, config: OrbitConfig) -> dict[str, Any]:
     """Everything the template shows, for the most recent run."""
     names = {firm.id: firm.name for firm in config.firms}
     run_id = store.get_latest_run_id(conn)
+    health = health_rows(config, {}, {}, {})
     data: dict[str, Any] = {
         "generated_at": _format_date(datetime.now(UTC).isoformat()),
         "run": None,
-        "health": health_rows(config, {}),
+        "health": health,
+        "coverage": coverage_summary(health),
     }
     if run_id is None:
         return data  # nothing collected yet: the template says so
@@ -79,21 +109,56 @@ def build_report_data(conn, config: OrbitConfig) -> dict[str, Any]:
     snapshots = snapshot_runs(conn, run_id, firm_runs)
     notes = stale_notes(run_id, firm_runs, snapshots)
     partners = partner_rows(conn, snapshots, names)
+    baseline = baseline_firms(conn, run_id, firm_runs, names)
+    changes = [describe_event(e, names) for e in sort_changes(events)]
+    review = [describe_event(e, names) for e in events if e.type in REVIEW_TYPES]
+    health = health_rows(
+        config, firm_runs, snapshots, last_success_dates(conn, run_id, firm_runs)
+    )
+    run_date = _format_date(store.get_run_started_at(conn, run_id))
     data.update(
-        run={
-            "id": run_id,
-            "date": _format_date(store.get_run_started_at(conn, run_id)),
-        },
+        run={"id": run_id, "date": run_date},
         firms=firm_summary(firm_runs, names, snapshots, partners),
         stale=[{"name": names.get(f, f), "note": n} for f, n in sorted(notes.items())],
-        changes=[describe_event(e, names) for e in sort_changes(events)],
-        review=[describe_event(e, names) for e in events if e.type in REVIEW_TYPES],
-        baseline=baseline_firms(conn, run_id, firm_runs, names),
-        health=health_rows(config, firm_runs),
+        changes=changes,
+        review=review,
+        baseline=baseline,
+        monitored=monitored_firm_count(firm_runs, names, baseline),
+        health=health,
+        coverage=coverage_summary(health),
+        kpis=kpi_cards(partners, firm_runs, config, changes, review, run_date),
         partners=partners,
         filters=filter_options(partners),
     )
     return data
+
+
+def kpi_cards(
+    partners: list[dict],
+    firm_runs: dict,
+    config: OrbitConfig,
+    changes: list[dict],
+    review: list[dict],
+    run_date: str,
+) -> dict[str, Any]:
+    """The four overview numbers at the top of the report."""
+    return {
+        "partners": len(partners),
+        "partner_firms": len({p["firm"] for p in partners}),
+        "collected": sum(1 for row in firm_runs.values() if row["status"] == "OK"),
+        "configured": len(config.firms),
+        "changes": len(changes),
+        "review": len(review),
+        "updated": run_date,
+    }
+
+
+def monitored_firm_count(
+    firm_runs: dict, names: dict[str, str], baseline: list[str]
+) -> int:
+    """Firms OK in this run and in an earlier one: the firms a change could show for."""
+    ok_now = [f for f, row in firm_runs.items() if row["status"] == "OK"]
+    return sum(1 for firm_id in ok_now if names.get(firm_id, firm_id) not in baseline)
 
 
 def firm_summary(
@@ -148,7 +213,12 @@ def describe_event(event: Event, names: dict[str, str]) -> dict[str, Any]:
     firm_from = names.get(event.from_firm or "", event.from_firm)
     firm_to = names.get(event.to_firm or "", event.to_firm)
     details = event.details
-    row = {"type": event.type, "name": event.name, "link": details.get("profile_url")}
+    row = {
+        "type": event.type,
+        "badge": BADGES[event.type],
+        "name": event.name,
+        "link": details.get("profile_url"),
+    }
     if event.type == "MOVED":
         row.update(label="Moved", where=f"{firm_from} → {firm_to}")
         row["link"] = details.get("to", {}).get("profile_url")
@@ -194,40 +264,66 @@ def _describe_review(event: Event, firm_from: str, firm_to: str) -> dict[str, An
     }
 
 
-def health_rows(config: OrbitConfig, firm_runs: dict) -> list[dict]:
-    """One row per firm in config: this run's status, or its config status and reason."""
+def health_rows(
+    config: OrbitConfig,
+    firm_runs: dict,
+    snapshots: dict[str, int],
+    last_success: dict[str, str],
+) -> list[dict]:
+    """One row per firm in config: this run's status, or its config status and reason.
+
+    `status` stays the technical code (OK, SUSPECT, BLOCKED...); `label` is the
+    recruiter wording on the badge. The partner count is this run's, even when
+    the partners table falls back to an earlier list.
+    """
     rows = []
     for firm in config.firms:
         if firm.id in firm_runs:
             run = firm_runs[firm.id]
-            rows.append(
-                {
-                    "name": firm.name,
-                    "status": run["status"],
-                    "count": run["partner_count"],
-                    "reason": run["message"] or "",
-                }
-            )
+            status, count, reason = run["status"], run["partner_count"], run["message"]
         elif firm.status != "ACTIVE":
-            rows.append(
-                {
-                    "name": firm.name,
-                    "status": CONFIG_STATUS_LABELS[firm.status],
-                    "count": None,
-                    "reason": firm.reason or "",
-                }
-            )
-    # Firms collected this run first, then blocked, then everything else.
-    order = [
-        "OK",
-        "SUSPECT",
-        "FAILED",
-        "BLOCKED",
-        "SKIPPED",
-        "OUT OF SCOPE",
-        "NOT ASSESSED",
-    ]
+            status, count, reason = firm.status, None, firm.reason
+        else:
+            continue  # active in config but not part of this run
+        label = STATUS_LABELS[status]
+        if status in ("SUSPECT", "FAILED") and firm.id in snapshots:
+            label += SHOWING_LAST_GOOD
+        rows.append(
+            {
+                "name": firm.name,
+                "status": status,
+                "label": label,
+                "count": count,
+                "last_success": last_success.get(firm.id, ""),
+                "reason": reason or "",
+                "evidence_url": firm.evidence_url,
+            }
+        )
+    order = list(STATUS_LABELS)
     return sorted(rows, key=lambda r: (order.index(r["status"]), r["name"]))
+
+
+def last_success_dates(conn, run_id: int, firm_runs: dict) -> dict[str, str]:
+    """For each firm in this run, the date of its most recent OK collection."""
+    dates = {}
+    for firm_id, row in firm_runs.items():
+        if row["status"] == "OK":
+            last_ok = run_id
+        else:
+            last_ok = store.get_last_ok_run_id(conn, firm_id, before_run_id=run_id)
+        if last_ok is not None:
+            dates[firm_id] = _format_date(store.get_run_started_at(conn, last_ok))
+    return dates
+
+
+def coverage_summary(health: list[dict]) -> str:
+    """'3 collected · 3 blocked · 1 out of scope · 8 not yet assessed', from the rows."""
+    counts = Counter(row["status"] for row in health)
+    return " · ".join(
+        f"{counts[status]} {word}"
+        for status, word in COVERAGE_WORDS.items()
+        if counts[status]
+    )
 
 
 def snapshot_runs(conn, run_id: int, firm_runs: dict) -> dict[str, int]:
