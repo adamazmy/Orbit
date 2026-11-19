@@ -139,9 +139,10 @@ it provides `selectolax.lexbor`, while 1.0 removed the old default parser.
 ### `config/firms.yaml`
 The list of all 15 firms. Each entry has an `id` (the slug used everywhere,
 including database keys), `name`, `enabled`, a `status` and, unless the firm is
-ACTIVE, a one-line `reason`.
+ACTIVE, a one-line `reason`. A blocked firm can also carry an `evidence_url`,
+which the report links from that firm's data health row.
 
-- **ACTIVE** (enabled): Cravath, Weil.
+- **ACTIVE** (enabled): Cravath, Weil, Milbank.
 - **BLOCKED**: Simpson Thacher (robots.txt disallows its directory API),
   Wachtell (Cloudflare bot challenge on `/attorneys`; evidence in
   `docs/evidence/wachtell-cloudflare.txt`) and Davis Polk (the Pantheon edge
@@ -149,7 +150,7 @@ ACTIVE, a one-line `reason`.
   `docs/evidence/davispolk-curl-200.txt`). Their `source:` blocks are kept so
   they can be switched back on if the block is lifted.
 - **OUT_OF_SCOPE**: Quinn Emanuel (no transactional M&A practice).
-- **NOT_ASSESSED**: the other nine.
+- **NOT_ASSESSED**: the other eight.
 
 The `source:` block holds everything firm-specific an adapter needs (listing
 URLs, Algolia app id and index, Cravath's position and practice IDs, Weil's
@@ -450,31 +451,46 @@ for debug logs. Paths are relative to the folder you run from, normally the
 repo root.
 
 ### `orbit/report.py` and `templates/report.html.j2`
-`write_report` renders the most recent run into a single HTML file. CSS and
-about 20 lines of vanilla JS are inline, and nothing loads from a CDN, so the
-file opens offline and can be emailed. Sections, in order:
-1. **Header:** run date, firms tracked, partners per firm. Each chip's count
-   is the number of rows the partners table shows for that firm, so the two
-   never disagree. For a SUSPECT or FAILED firm that's the last good count,
-   with this run's figure as the warning: "Weil, Gotshal & Manges: 92
-   partners (last good, run 9) · SUSPECT: this run returned 51". The health
-   table still shows this run's count and reason.
-2. **This week's changes:** MOVED first, then JOINED, LEFT, office and title
-   changes.
+`write_report` renders the most recent run into a single HTML file laid out
+as a dashboard. CSS and about 35 lines of vanilla JS are inline, there are no
+charts, and nothing loads from a CDN, so the file opens offline and can be
+emailed. It works at laptop and phone widths. A sticky header links to each
+section (Overview · Changes · Partners · Data health), and the demo banner
+sits above it. Sections, top to bottom:
+1. **Overview:** four KPI cards from `kpi_cards`: partners tracked (and
+   across how many firms), firms collected this run out of firms configured,
+   changes since the last run (plus how many need review), and last updated.
+2. **Changes since last run:** one card per event, MOVED first, then JOINED,
+   LEFT, office and title changes. Badges say Moved, Joined, Left, Office or
+   Title (`BADGES`), and a move reads "Firm A → Firm B".
    - A firm whose first OK snapshot is this run gets "baseline recorded,
      changes appear from the next run".
-   - POSSIBLE_MOVE and LISTED_AT_TWO_FIRMS are shown separately under "Needs
-     review", worded as doubts, never as facts.
-3. **Firm health:** every firm in config. Firms collected this run show their
-   status and reason (OK, SUSPECT, FAILED…). The others show their config
-   status and reason (BLOCKED, OUT OF SCOPE, NOT ASSESSED).
-4. **All partners:** each firm's latest OK snapshot (`snapshot_runs`). For a
-   SUSPECT or FAILED firm that's its last good list, not the doubtful or
-   missing one. So stale data is never mistaken for current, `stale_notes`
-   labels such a firm above the table: "Showing last good
-   snapshot (run N), because this run looked broken" (SUSPECT), or "…because
-   this run failed" (FAILED). The table has a text search, plus firm, office
-   and practice drop-downs that filter rows in place.
+   - With no changes, the page says "No changes detected across the N
+     monitored firms". N (`monitored_firm_count`) counts firms OK in this run
+     *and* an earlier one, so a baseline firm isn't counted: no change could
+     have shown for it.
+   - POSSIBLE_MOVE and LISTED_AT_TWO_FIRMS get their own "Needs review" cards,
+     worded as doubts, never as facts.
+3. **Data health:** one row per firm in config (`health_rows`), with this
+   run's partner count, the date of its last OK collection
+   (`last_success_dates`), and a badge in recruiter wording (`STATUS_LABELS`):
+   Collected, Suspect, Failed, Blocked (unable to collect), Out of scope, Not
+   yet assessed. Suspect and Failed add "(showing last good data)" when the
+   partners table falls back to an earlier list. The technical status code
+   stays in `status`; the reason and the firm's `evidence_url` from config are
+   tucked into an expandable `<details>` per row. Above the rows,
+   `coverage_summary` counts the rows, e.g. "3 collected · 3 blocked · 1 out
+   of scope · 8 not yet assessed". It's computed, so it follows the config.
+4. **Partners:** each firm's latest OK snapshot (`snapshot_runs`), with a
+   sticky table header, a text search and firm, office and practice
+   drop-downs. A button per firm shows its count and filters the table. Each
+   button's count is the number of rows the table shows for that firm, so
+   the two never disagree. For a SUSPECT or FAILED firm that's the last good
+   count, with this run's figure as the warning: "Weil, Gotshal & Manges · 92
+   (last good, run 9) · Suspect: this run returned 51". `stale_notes` also
+   puts a sentence above the table: "Showing last good snapshot (run N),
+   because this run looked broken" (SUSPECT), or "…because this run failed"
+   (FAILED).
 
 The Python side (`build_report_data`, `describe_event`, `health_rows`…) does
 the grouping and wording, so the template only lays things out. Jinja2
@@ -502,9 +518,14 @@ CLI's pipeline functions.
 
 ### `tests/test_report.py`
 Builds reports from the fictional demo weeks and checks:
-- section order, and MOVED appearing first;
+- section order and nav links, and MOVED appearing first;
 - review flags kept apart and labelled;
-- health showing both SUSPECT and config-blocked firms;
+- health showing both SUSPECT and config-blocked firms, in recruiter wording,
+  with last-collected dates, and the evidence link inside the row's details;
+- the coverage summary (from a small config with every status, and from the
+  demo) and the KPI numbers;
+- "No changes detected across the N monitored firms", with a baseline firm
+  left out of N;
 - a SUSPECT firm's partner list coming from its last good run;
 - the filters and profile links;
 - no external scripts or styles;
