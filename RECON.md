@@ -83,9 +83,25 @@ Recon 18 Nov 2026, 23:03.
 - robots.txt: the endpoint is allowed. Only `/Print?`, `/VCard/`, `/sitecore/` and some media paths are disallowed.
 - **Expected: 92 partners.**
 
+## 7. Milbank — BUILD (same search platform as Cravath, HTML cards)
+
+Recon 19 Nov 2026, 12:42 (browser), confirmed through Orbit's fetcher 12:46–12:47.
+
+- Endpoint: `GET https://www.milbank.com/_site/search?v=attorney&t=20012&20012_name=Partner&p=<practice>&f=0&s=100&html`
+  - `t=20012` + `20012_name=Partner` = position Partner.
+  - `p` = practice ID: **305** = Private Equity, **306** = Mergers and Acquisitions, **823** = Distressed M&A. **282** = Corporate (the parent practice; not used).
+  - `f` = offset, `s` = page size (`s=100` works). `html` is a bare flag that asks for rendered cards.
+  - `q=Partner` (sent by the site's own page) isn't needed: same count without it.
+- Same platform as Cravath (`/_site/search`, `v=attorney`, `f`), but the response is `{mode: "json_wrapped_html", totals: {ALL: N}, rendered_view: "<html>"}`. Without `html`, it falls back to `raw_json`.
+- Each card is `li.card--attorney`: name `.card__first-name`; profile link `/en/professionals/<slug>.html`; title `.card__second-line`; office `.card__office-name a`. Cards carry **no practice**, and also hold an email, phone and photo: never read.
+- **Repeated `p=` filters combine as AND, not OR.** 305+306+823 together returned 9, and adding 282 still returned 9. Those 9 are exactly the partners tagged with all three practices. So query one practice at a time and merge by profile URL.
+- Counts, 19 Nov: PE **28**, M&A **53**, Distressed M&A **15**; overlaps PE∩M&A 25, PE∩DM&A 9, M&A∩DM&A 12, all three 9. **59 unique partners.** All titled Partner, one office each.
+- robots.txt disallows `/en/professionals/index.html?q=` (the HTML search page), not `/_site/search`. Served by Cloudflare, but no challenge: HTTP 200 to Orbit's honest User-Agent.
+- **Expected: 59 partners.**
+
 ## Others — not assessed
 
-Kirkland & Ellis, Latham & Watkins, Skadden, Gibson Dunn, Paul Hastings, King & Spalding, Paul Weiss, Milbank, Sullivan & Cromwell. List in config as `enabled: false`, status "not yet assessed".
+Kirkland & Ellis, Latham & Watkins, Skadden, Gibson Dunn, Paul Hastings, King & Spalding, Paul Weiss, Sullivan & Cromwell. List in config as `enabled: false`, status "not yet assessed".
 
 ---
 
