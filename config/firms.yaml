@@ -22,6 +22,7 @@ firms:
     enabled: false
     status: BLOCKED
     reason: "Cloudflare bot challenge on /attorneys (403, Cf-Mitigated: challenge) despite robots.txt allowing it; not bypassed. Evidence: docs/evidence/wachtell-cloudflare.txt"
+    evidence_url: https://github.com/adamazmy/Orbit/blob/main/docs/evidence/wachtell-cloudflare.txt
     directory_url: https://www.wlrk.com/attorneys
     source:
       # Kept from recon in case the block is lifted.
@@ -36,6 +37,7 @@ firms:
     enabled: false
     status: BLOCKED
     reason: "Edge (Pantheon) rejects non-browser TLS clients with 403 even with honest headers; curl from the same machine gets 200. Not bypassed."
+    evidence_url: https://github.com/adamazmy/Orbit/blob/main/docs/evidence/davispolk-curl-200.txt
     directory_url: https://www.davispolk.com/lawyers
     source:
       # Kept from recon in case the block is lifted. Evidence: docs/evidence/davispolk-curl-200.txt

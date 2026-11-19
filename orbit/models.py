@@ -78,6 +78,8 @@ class FirmConfig(BaseModel):
     status: FirmStatus
     reason: str | None = None
     directory_url: str | None = None
+    # Link to the evidence for a BLOCKED status, shown in the report's data health section.
+    evidence_url: str | None = None
     # Adapter-specific settings (URLs, practice IDs...). Only that firm's adapter reads them.
     source: dict[str, Any] = Field(default_factory=dict)
 
