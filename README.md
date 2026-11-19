@@ -39,7 +39,7 @@ pip install -e ".[dev]"
 2. Open the two reports in your browser:
    - Windows: `start reports\demo-week1.html` then `start reports\demo-week2.html`
    - macOS: `open reports/demo-week1.html reports/demo-week2.html`
-   - Linux: `xdg-open reports/demo-week1.html`
+   - Linux: `xdg-open reports/demo-week1.html` then `xdg-open reports/demo-week2.html`
 
    (Or double-click the files in the `reports` folder.)
    Week 1 is the baseline; week 2 shows joins, departures, a move, a review flag and a suspect firm.
@@ -52,7 +52,7 @@ pip install -e ".[dev]"
 
 Then: `python -m pytest` runs all 137 tests offline.
 
-The first live `orbit run` records a baseline: there is nothing to compare it with yet, so changes appear from the second run onward. Real partner lists change slowly, so `orbit demo` plays two fictional weeks through the same pipeline and writes a report after each one: `demo-week1.html` shows the baseline (nothing to compare yet), and `demo-week2.html` shows what joins, departures, moves, review flags and a suspect firm look like a week later. Each carries a banner saying which week it is. The demo uses a temporary database and never touches `data/orbit.db`.
+The first live `orbit run` records a baseline: there is nothing to compare it with yet, so changes appear from the second run onward. Real partner lists change slowly, so `orbit demo` plays two fictional weeks through the same pipeline and writes a report after each one. Each carries a banner saying which week it is. The demo uses a temporary database and never touches `data/orbit.db`.
 
 Data is stored in `data/orbit.db` (SQLite) and raw responses are cached in `data/raw/<run_id>/<firm_id>/`. Both are local only and gitignored.
 
