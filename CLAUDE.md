@@ -14,7 +14,7 @@ When you write code for this project, write it the way I would, so I can explain
 
 ## Scope discipline
 - Build only what PLAN.md lists. Do not add features, dependencies or files that aren't in the plan — ask first.
-- Approved dependencies: httpx, selectolax (or beautifulsoup4), playwright (only inside an adapter that needs it), rapidfuzz, pydantic, pyyaml, typer, jinja2, pytest. Nothing else without asking.
+- Approved dependencies: httpx, selectolax (or beautifulsoup4), playwright (only inside an adapter whose site needs JavaScript rendering, never to get past bot protection), rapidfuzz, pydantic, pyyaml, typer, jinja2, pytest. Nothing else without asking.
 - No ORMs, no async frameworks, no Docker, no web servers.
 
 ## Work in small steps
