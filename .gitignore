@@ -39,3 +39,6 @@ Thumbs.db
 
 # Private planning notes (kept local)
 PLAN.md
+
+# Generated reports (latest.html holds real scraped data)
+reports/
