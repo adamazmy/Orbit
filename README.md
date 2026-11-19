@@ -29,12 +29,27 @@ Data is stored in `data/orbit.db` (SQLite) and raw responses are cached in `data
 
 ## What I built, who it's for, and why
 
-TODO: Adam writes this. Facts you can use:
-- Built for recruiters at Pinpoint Partners, to follow partner moves in Corporate/M&A without checking firm websites by hand.
-- The output is one self-contained HTML file (inline CSS and JS, no CDN), so it opens offline and can be emailed.
-- The report shows this week's changes (moves first), a "Needs review" list for matches the system won't assert on its own, a firm health table, and a searchable, filterable table of every tracked partner.
-- Scope rule from RECON.md: people titled Partner in M&A, Private Equity or M&A sub-practices.
-- Designed to run weekly: each run is an append-only snapshot, and changes come from comparing snapshots.
+Pinpoint’s recruiters spend time before every call checking firm websites to see who is where. In a small market where partners move constantly, the useful information isn’t the list itself but what has changed.
+
+Orbit is an automated weekly report that tracks corporate and M&A partners across the target firms, so recruiters don’t have to check each site by hand. It produces a single HTML file that opens offline and can be emailed. The report shows:
+
+- This week’s changes: who joined, left, moved between firms, or changed office or title.
+- A “needs review” list: possible moves the system isn’t confident enough to assert on its own.
+- A searchable, filterable table of every tracked partner.
+
+Who it’s for:
+
+- Recruiters, before a call: a current view of the partner and what’s changed around them.
+- Business development: a partner leaving often means a firm needs to hire, so departures point to potential clients and live searches.
+
+Build versus buy: commercial products already exist. The [Leopard List](https://surepoint.com/legal-insights/leopard-list/) (now SurePoint Legal Insights), Firm Prospects and Law.com Compass track lateral moves across hundreds of thousands of attorneys. They’re built for breadth, so they’re generic by design and priced accordingly. Pinpoint’s need is narrower and sharper: corporate and M&A partners at a defined set of firms, presented the way its recruiters actually work. Building it means:
+
+- It’s focused: only the partners and practices Pinpoint places, with no noise.
+- It’s owned: the data and its history stay in-house, ready to feed Future Recruiter AI’s matching and briefings.
+- It’s adaptable: adding a firm or changing what counts as “in scope” is a config change, not a feature request to a vendor.
+- It’s cheap to run: one weekly job, with no per-seat licence.
+
+Scope: people titled Partner in M&A, Private Equity or M&A-specific practices, in any office. Firms label practices differently, so each firm’s mapping is set explicitly in config.
 
 ## Coverage and accuracy
 
@@ -107,30 +122,70 @@ A file-by-file walkthrough is in [docs/CODE_GUIDE.md](docs/CODE_GUIDE.md).
 
 ## What I deliberately left out
 
-TODO: Adam writes this. Facts you can use:
-- No browser automation: Playwright is an approved dependency but isn't installed, because no collected firm needs it. Blocked firms stay blocked rather than being scraped through a headless browser or TLS impersonation.
-- 9 firms are listed as NOT ASSESSED in config; Simpson Thacher's stale 2021 sitemap was not used as a fallback (it misses recent hires).
-- No contact data: emails, phone numbers, photos and bios are never read, though some responses contain them.
-- Name changes during a move aren't matched (would need another identifier, e.g. a bar number, which isn't collected).
-- No web server, scheduler, ORM or Docker: it's a CLI that writes a static file. <!-- add signals / notifications here depending on what gets built -->
+The brief is bigger than six hours on purpose, so these were choices, not oversights.
+
+- Bypassing bot protection. Wachtell (Cloudflare) and Davis Polk (an edge server that rejects non-browser connections) block automated clients. I could have got through with a headless browser or by routing requests through curl, but that would work against each firm’s clear intent. They’re marked BLOCKED, with evidence, instead.
+- A web app. A server, logins and hosting would add setup and failure points for a report that’s read once a week. A single HTML file opens anywhere and can be emailed. If Pinpoint later wants it live and shared, the same database can sit behind a small web app.
+- LinkedIn and news scraping. LinkedIn’s terms forbid it, and news coverage is patchy. Firm directories are the most reliable public source of who is where.
+- AI (LLM) parsing as the main extraction method. Each site’s own data is structured, so plain parsing is cheaper, predictable, and can’t invent partners. LLMs make more sense later for messy sources such as press releases.
+- Covering all 15 firms. I prioritised a reliable pipeline over coverage: 2 working firms, 3 documented as blocked, 1 out of scope, and the rest listed as not yet assessed. Adding a firm is a small, contained change (see [How it holds up as it grows](#how-it-holds-up-as-it-grows-and-what-id-change-first)).
+- Narrowing Cravath to M&A only. Cravath’s site only offers “Corporate”, which includes capital markets and finance partners. Its practice tags on individual profiles could narrow this later.
+- Notifications, opportunity signals and per-partner briefings. Alerts and a review queue are in [What I'd change first](#how-it-holds-up-as-it-grows-and-what-id-change-first); signals and briefings are in [How this feeds Future Recruiter AI](#how-this-feeds-future-recruiter-ai). The stored events and history already support them, but each one is a feature on top of a core that had to be right first.
+- Postgres, cloud hosting, CRM integration, multiple users. None are needed at this scale. SQLite is a single file with no setup. These become worth it once multiple people use Orbit daily.
 
 ## How it holds up as it grows, and what I'd change first
 
-TODO: Adam writes this. Facts you can use:
-- Adding a firm touches four places only (config, adapter, registry line, fixture test); nothing shared changes.
-- The fetcher waits 2s per domain and tracks delays per domain, and firms are fetched one after another; one run of two firms makes a handful of requests.
-- `observations` grows by one full snapshot per firm per run (append-only), with an index on `(run_id, firm_id)` because every diff reads that way.
-- Raw responses are cached per run in `data/raw/`; there's no retention or clean-up yet.
-- Cross-week move matching looks back 28 days (`MATCH_WINDOW_DAYS`), because firms update their sites at different speeds.
+**From 2 firms to 50.** Adding a firm touches four things and nothing else: an entry in `config/firms.yaml`, one adapter file, one line in the adapter registry, and one fixture test. Normalising, health checks, storage, change detection and the report are shared and never firm-specific. <!-- If built: Milbank was added in X minutes this way. --> Requests run one firm at a time with a 2-second delay per site, so even 50 firms take only minutes, which is fine for a weekly job. Firms are on different domains, so they could run in parallel later without breaking any site's rate limit.
+
+**Sites that change.** This is the real long-term risk, so the design assumes it will happen:
+
+- **Breakage is caught, never misreported.** An adapter raises an error rather than returning an empty or partial list, and the health check marks a firm SUSPECT if its count drops by more than 30%. Either way, that firm produces no change events, and the report keeps showing its last good snapshot, clearly labelled. I tested this on live data by removing one of Weil's practice filters: results fell from 92 to 51, Weil was flagged SUSPECT, and no false departures were reported.
+- **Fragile values live in config,** such as practice and position IDs, so a site change usually means editing one line.
+- **Expiring values** such as Davis Polk's time-limited search key would be fetched fresh each run rather than hard-coded (designed in RECON.md; Davis Polk is currently blocked).
+- **Each adapter has an offline test** built on the site's real response structure, so changes to the parsing code can't silently break it. Changes on the site itself are caught by the adapter's own checks and the health check above.
+
+**Running every week.** Snapshots are only ever added, never overwritten, and history is what makes change detection possible. At around 160 partners a week that's about 8,000 rows a year; at 50 firms (about 3,000 partners), roughly 150,000 a year. SQLite handles that comfortably. A weekly scheduled task or GitHub Action is all the infrastructure needed.
+
+**What I'd change first, in order:**
+
+1. **Alerts for whoever maintains Orbit.** A firm turning SUSPECT, FAILED or BLOCKED should notify someone immediately. Otherwise a broken adapter quietly stops tracking a firm. Recruiters would get a separate weekly digest of market changes, via Teams.
+2. **Reusable adapters per platform.** Firms share search platforms (Davis Polk uses Algolia, Weil uses Sitecore). Once a second firm on the same platform appears, one configurable adapter can cover all of them. I didn't build this ahead of need.
+3. **A review queue.** POSSIBLE_MOVE and LISTED_AT_TWO_FIRMS items need a quick way for a recruiter to confirm or dismiss them, so the system learns from those decisions.
+4. **Incremental fetching.** Some firms publish sitemaps with last-modified dates per profile (Wachtell does), so only changed profiles would need fetching. That's gentler on sites and faster at scale.
+5. **Legitimate routes for blocked firms:** ask the firm for access, license data from a provider to fill gaps, or track lateral-hire announcements in firms' public news pages.
+6. **Postgres and a small web view,** once several people use Orbit daily rather than reading one weekly report.
 
 ## Responsible scraping and data protection
 
-TODO: Adam writes this. Facts you can use:
-- Every request checks robots.txt first; a 401/403 on robots.txt is treated as "keep out". Requests carry an identifying User-Agent with a link to this repo: `OrbitBot/0.1 (partner-market research; weekly; +https://github.com/adamazmy/Orbit)`.
-- At least 2 seconds between requests to the same site, timeouts, and at most 3 retries.
-- Bot protection is never bypassed: Wachtell (Cloudflare) and Davis Polk (TLS fingerprinting) were marked BLOCKED with evidence, and Simpson Thacher's robots.txt-disallowed API wasn't used.
-- Only name, title, practices, offices and profile URL are stored. The raw cache can contain whole responses (e.g. emails in Cravath's JSON), so `data/` is gitignored and stays local; API keys in logged URLs are redacted.
-- Test fixtures use fictional people with no emails or phone numbers.
+The brief asks to treat websites and personal data as a production system would. These are the rules Orbit follows, and the decisions that came out of them.
+
+**How Orbit treats websites**
+
+- **robots.txt is checked before every request.** Disallowed paths are never fetched.
+- **It identifies itself honestly.** Every request uses the User-Agent `OrbitBot/0.1`, with a link to this repository, never a disguised browser string.
+- **It's slow and light.** At least 2 seconds between requests to the same site, robots.txt read once per site per run, every response saved locally, and one run a week. A full run of Cravath and Weil makes four requests in total.
+- **It prefers each site's own data source.** Where a directory page loads its results from a JSON endpoint, Orbit uses that one request rather than crawling pages.
+- **It never bypasses protection.** No CAPTCHA solving, no headless browsers to get past challenges, no impersonating browsers.
+
+**Where that meant saying no**
+
+| Firm | What I found | Decision |
+|---|---|---|
+| Simpson Thacher | A clean JSON API, but robots.txt disallows `/dataservices`. The permitted sitemap is dated 2021 and misses recent hires. | Not used. Marked BLOCKED. |
+| Wachtell | robots.txt allows `/attorneys`, but Cloudflare serves a bot challenge (`403`, `Cf-Mitigated: challenge`). | Not bypassed. Marked BLOCKED. [Evidence](docs/evidence/wachtell-cloudflare.txt) |
+| Davis Polk | The site's edge server rejects Python's connection type with `403`, even with honest headers, while curl on the same machine gets `200`. | Not routed through curl: that would rely on a connection-fingerprint quirk, wouldn't work the same on other machines, and would go against the site's evident intent. Marked BLOCKED. [Evidence](docs/evidence/davispolk-curl-200.txt) |
+| Cravath | robots.txt blocks filtered directory pages (`/people/index.html?`), not the search endpoint behind them. | Used the endpoint, at the same low rate. |
+
+In production, the route for blocked firms would be to ask for access, or to license the data.
+
+**How Orbit treats personal data**
+
+- **Only what the job needs:** name, title, practices, offices and profile URL, all public professional information the firms publish themselves.
+- **Deliberately dropped:** several sources also return emails, phone numbers, photos, bios and education. These are never kept in the database or the repository. Raw responses are cached locally in the gitignored `data/raw/` folder for debugging, and can include contact details the sites publish.
+- **Nothing personal in this repository:** collected data and generated reports stay local in gitignored `data/` and `reports/` folders. Test fixtures and the demo use fictional people. The demo runs in a separate temporary database and carries a visible "fictional data" banner, so demo data can never be mixed with real data.
+- **No secrets in code:** credentials or webhook URLs would come from environment variables, and no API keys are committed.
+
+**Before production use** I'd add a short legitimate-interests assessment under UK GDPR, a retention limit (for example, deleting observations older than 12 months), a retention limit for the raw cache (e.g. delete after 7 days) or stripping contact fields before caching, and a simple way to remove a person's records on request. (I'm not a lawyer; this would need proper review.)
 
 ## Tech stack and why
 
@@ -147,16 +202,12 @@ TODO: Adam writes this. Facts you can use:
 
 ## How this feeds Future Recruiter AI
 
-TODO: Adam writes this. Facts you can use:
-- Every change is stored as a structured event (type, name, from/to firm, details, confidence, needs_review) in SQLite, not only as report text.
-- Snapshots are append-only, so there's a full weekly history of who was where.
-- Each partner has a stable per-firm ID (`person_key`) and profile URL, which can link Orbit's records to other data.
-- Uncertainty is explicit (`confidence`, `needs_review`), so downstream tools can treat asserted moves and possible moves differently.
+Orbit is a first data source for Future Recruiter AI, not a standalone tool. The weekly snapshots and change events are the kind of clean, structured, dated data an AI-first recruitment CRM needs.
 
-## Time spent and AI use
+- **Candidate records without manual entry.** Each tracked partner already has a stable ID, normalised name, firm, office and practice. These can become candidate records in the new CRM directly, instead of recruiters copying details from websites.
+- **Better matching.** Practice, office and move history are core inputs for matching partners to searches, and Orbit keeps that history automatically.
+- **Timing signals.** A partner who moved last month is unlikely to move again soon. A team that has just lost several partners may be open to conversations. Both come straight from Orbit's events.
+- **Pre-call briefings.** Combining a partner's current details with recent changes around them (who left their team, whether their firm is growing or shrinking) is the briefing recruiters currently assemble by hand.
+- **Clean foundations for the CRM.** The same normalisation and duplicate-matching rules (stable IDs, name normalisation, flagging rather than guessing uncertain matches) are what a migration away from the current CRM will need.
 
-TODO: Adam writes this. Facts you can use:
-- First commit 18 Nov 2026 19:18; recon done by hand on 18 Nov (RECON.md); the build ran into 19 Nov. 31 commits so far.
-- Built with Claude Code, working from PLAN.md and the rules in [CLAUDE.md](CLAUDE.md) (small steps, commit only after review, tests before code commits, no bypassing bot protection).
-- Real data in test fixtures was replaced with fictional people before committing.
-- 116 tests, all offline.
+AI fits on top of this clean data: drafting briefings, suggesting likely movers and parsing messy sources like press releases. The core tracking stays deterministic, so nothing in the CRM is invented.
