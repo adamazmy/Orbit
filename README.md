@@ -15,6 +15,7 @@ Tracks Corporate/M&A partners at top law firms each week and reports who joined,
 7. [Responsible scraping and data protection](#responsible-scraping-and-data-protection)
 8. [Tech stack and why](#tech-stack-and-why)
 9. [How this feeds Future Recruiter AI](#how-this-feeds-future-recruiter-ai)
+10. [Time spent and AI use](#time-spent-and-ai-use)
 
 For how the code works file by file, see [docs/CODE_GUIDE.md](docs/CODE_GUIDE.md). Per-firm recon notes are in [RECON.md](RECON.md).
 
@@ -251,5 +252,20 @@ Orbit is a first data source for Future Recruiter AI, not a standalone tool. The
 - **Clean foundations for the CRM.** The same normalisation and duplicate-matching rules (stable IDs, name normalisation, flagging rather than guessing uncertain matches) are what a migration away from the current CRM will need.
 
 AI fits on top of this clean data: drafting briefings, suggesting likely movers and parsing messy sources like press releases. The core tracking stays deterministic, so nothing in the CRM is invented.
+
+[↑ Back to contents](#contents)
+
+## Time spent and AI use
+
+**About 6 hours 19 minutes in total:**
+
+- Domain research and site recon, including diagnosing the blocked firms: about 1 hour
+- Core build (fetcher, adapters, normalisation, health check, change detection and tests), including reviewing every change as it was written: about 3 hours
+- Report, demo and README: about 1.5 hours
+- Recording and editing the walkthrough video: about 50 minutes
+
+That's about 20 minutes over the suggested 6 hours, all of it on the video. The product itself took about 5.5 hours.
+
+**AI use:** I built Orbit with Claude Code as a pair programmer. Every design decision is mine, I reviewed every change before committing it, and I can explain every line. The rules I gave it are in [CLAUDE.md](CLAUDE.md), and the code is explained module by module in [docs/CODE_GUIDE.md](docs/CODE_GUIDE.md).
 
 [↑ Back to contents](#contents)
