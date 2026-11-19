@@ -47,6 +47,18 @@ class FetchFailed(FetchError):
     """The request failed for another reason (network error, 5xx, unexpected status)."""
 
 
+def build_url(url: str, params: dict[str, Any] | None = None) -> str:
+    """The URL to request: `url` with `params` added to any query it already has.
+
+    httpx.URL(url, params=...) replaces an existing query string (even with
+    params=None), which silently dropped Milbank's filters. A URL with no params
+    is used exactly as given.
+    """
+    if not params:
+        return url
+    return str(httpx.URL(url).copy_merge_params(params))
+
+
 class Fetcher:
     """Polite HTTP client for one run. Use as a context manager so the connection pool closes."""
 
@@ -79,7 +91,7 @@ class Fetcher:
         self, firm_id: str, url: str, params: dict[str, Any] | None = None
     ) -> httpx.Response:
         """GET a URL after checking robots.txt, and cache the response for this firm."""
-        full_url = str(httpx.URL(url, params=params))
+        full_url = build_url(url, params)
         self._check_robots(full_url)
         response = self._send("GET", full_url)
         self._cache(firm_id, "GET", full_url, response)
@@ -99,7 +111,7 @@ class Fetcher:
         URL. Only for a firm's search API hosted on a third-party domain (Davis
         Polk's Algolia): we follow the firm's own rules for the page the API powers.
         """
-        full_url = str(httpx.URL(url, params=params))
+        full_url = build_url(url, params)
         self._check_robots(robots_gate_url or full_url)
         response = self._send("POST", full_url, json=body)
         self._cache(firm_id, "POST", full_url, response)
