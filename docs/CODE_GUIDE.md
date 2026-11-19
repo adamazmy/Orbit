@@ -4,7 +4,8 @@ A plain-English walkthrough of the code, for someone reading it for the first
 time. It is updated at the end of every build step. The README explains *why*
 Orbit is built the way it is; this guide explains *how* the code does it.
 
-Status: **report and demo (step 3)**. `orbit run` fetches Cravath and Weil,
+Status: **report and demo (step 3), plus a third firm (Milbank)**. `orbit run`
+fetches Cravath, Weil and Milbank,
 keeps partners only, health-checks each firm, stores the snapshot, diffs each
 OK firm against its last OK snapshot, pairs cross-firm moves, stores the
 events and writes `reports/latest.html`. `orbit demo` shows the same report
@@ -234,6 +235,12 @@ Polk. Its search API lives on algolia.net, so we check davispolk.com's
 robots.txt for `/lawyers`, the page the API powers. The same delay and
 User-Agent apply.
 
+URLs are built by `build_url(url, params)`. A URL with no `params` is used
+exactly as given; otherwise the params are added to its existing query.
+Non-obvious: `httpx.URL(url, params=...)` *replaces* the query, even with
+`params=None`, which silently dropped Milbank's filters during recon (found 19
+Nov; Cravath and Weil were unaffected because they pass everything as params).
+
 Note: the raw cache stores whole responses, which can include fields we don't
 keep (e.g. emails in Cravath's JSON). `data/` is gitignored and stays local;
 the retention policy in the README covers it.
@@ -383,6 +390,50 @@ The 10 tests run with no network (`pytest`) and cover:
   sends the exact config IDs, paging by `pagenum`, failing when the unique
   count doesn't match `TotalCount`, and never returning an empty list.
 
+### `orbit/adapters/milbank.py`
+Milbank's directory uses the **same search platform as Cravath**:
+`/_site/search` with `v=attorney` and the offset `f`. Here it's asked for
+rendered cards (the bare `html` flag), so the answer is `json_wrapped_html`:
+JSON holding `totals.ALL` and an HTML string of `li.card--attorney` cards.
+
+Non-obvious decisions:
+- **One request per practice.** Repeated `p=` filters are combined as AND, not
+  OR: on 19 Nov, Private Equity (305), M&A (306) and Distressed M&A (823)
+  together returned 9, exactly the people in all three. Queried separately
+  they return 28, 53 and 15, which merge to 59. So the adapter queries each
+  practice in `firms.yaml`, merges by profile URL, and gives each person the
+  practices whose query returned them (the cards themselves carry none).
+  Corporate (282) is the parent practice and isn't used.
+- **Completeness per practice.** Each practice's unique count must equal its
+  `totals.ALL`, or the firm fails rather than looking short. A page shorter
+  than `page_size` is the last one, so no extra request is made.
+- **The URL is built by hand**, because `html` must be sent as a bare flag;
+  encoding it as a parameter would send `html=`. `q=Partner` (used by the
+  site's own page) isn't sent: the position filter `t=20012` gives the same
+  count without it.
+- `person_key` is the profile slug (`/en/professionals/<slug>.html`).
+- Only the name, title, office and profile link are read. Cards also hold an
+  email, a phone number and a photo.
+
+**Shared platform, not shared code (yet).** Milbank and Cravath both run
+`/_site/search`, but their filters and response modes differ (Cravath: `po`
+and `pr` with `raw_json` hits; Milbank: `t` and `p` with HTML cards). If a third firm on
+this platform appears, that's the trigger to write one configurable
+`/_site/search` adapter in `adapters/base.py` or its own module. Building it
+now, from two examples, would mean guessing its shape.
+
+### `tests/test_adapter_milbank.py` and `tests/fixtures/milbank/`
+The fixture keeps the card HTML structure of the 19 Nov response with three
+fictional people (Riley Q. Placeholder, Morgan Example, Casey Sample). The
+email and phone blocks are left out entirely; the photo path is fictional, so
+the tests can check it never reaches a record.
+
+The 10 tests run with no network and cover parsing and field mapping,
+rejecting the wrong response mode or a card without a profile link, one
+request per practice with the exact filters (no `q`, bare `html`), merging
+practices by profile, paging by offset, failing when a practice's unique
+count doesn't match `totals.ALL`, and never returning an empty list.
+
 ### `orbit/cli.py`
 The `orbit` command, built with Typer. `orbit run` follows the run flow above.
 - `collect_firm` runs one firm's adapter. If the adapter fails, it records the
@@ -480,5 +531,10 @@ cache folders, and local tool config files that contain tokens.
    a handful of records, remove emails and phone numbers, and replace real
    people with fictional names, IDs and URLs (keeping the structure) before
    committing it. See the Cravath adapter for an example.
+
+Before writing a new adapter, check whether the firm's site runs a platform
+Orbit already reads (e.g. `/_site/search`, used by Cravath and Milbank).
+Milbank, added this way on 19 Nov, needed only these four steps, plus one
+fetcher fix found on the way (`build_url`).
 
 Nothing else in the codebase should need to change.
