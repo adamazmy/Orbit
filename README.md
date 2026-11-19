@@ -105,6 +105,13 @@ Known limitation: matching is by name, so a partner whose name changes as they m
 
 ## Architecture and key decisions
 
+How one weekly run flows, from config to report:
+
+![Orbit run flow: config and fetcher, three adapters, normalise, health check, SQLite, diff, events, and the HTML report; SUSPECT firms are stored but never diffed, BLOCKED firms store nothing](docs/images/workflow.png)
+
+<details>
+<summary>Text version of the run flow</summary>
+
 ```
 config/firms.yaml          firms, URLs and IDs, status (ACTIVE / BLOCKED / ...)
       |
@@ -130,6 +137,8 @@ diff.py                    each OK firm vs its last OK snapshot:
       v
 report.py + template       reports/latest.html (self-contained)
 ```
+
+</details>
 
 Key decisions:
 - **Adapters only fetch and parse.** Normalising, health checks, storage, diffing and reporting are shared, so adding a firm means one config entry, one adapter file, one registry line and one fixture test. Checklist: [docs/CODE_GUIDE.md › How to add a firm](docs/CODE_GUIDE.md#how-to-add-a-firm).
