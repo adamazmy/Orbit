@@ -8,7 +8,7 @@ import pytest
 
 from orbit import demo, store
 from orbit.cli import record_events, save_snapshot
-from orbit.demo import DEMO_BANNER, demo_config, run_demo, seed_demo_data
+from orbit.demo import demo_banner, demo_config, run_demo, seed_demo_data
 from orbit.models import FirmConfig, OrbitConfig, PartnerRecord
 from orbit.report import (
     build_report_data,
@@ -132,9 +132,9 @@ def test_first_snapshot_says_baseline_recorded(conn):
     text = visible_text(
         render(build_report_data(conn, demo_config()) | {"banner": None})
     )
-    assert (
-        "Alder & Finch LLP: baseline recorded, changes appear from the next run" in text
-    )
+    # Every collected firm is new, so one message names them all.
+    assert "Baseline recorded, changes appear from the next run." in text
+    assert "First snapshot for Alder & Finch LLP." in text
 
 
 def test_no_runs_yet(conn):
@@ -159,9 +159,9 @@ def test_names_from_websites_are_escaped(conn):
 
 def test_demo_has_banner_and_every_kind_of_change(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    output = run_demo(tmp_path / "reports" / "demo.html")
-    text = visible_text(output.read_text(encoding="utf-8"))
-    assert DEMO_BANNER in text
+    _, week_2 = run_demo(tmp_path / "reports")
+    text = visible_text(week_2.read_text(encoding="utf-8"))
+    assert demo_banner(2, 2) in text
     for label in (
         "Moved",
         "Possible move",
@@ -187,7 +187,7 @@ def test_demo_never_touches_the_real_database(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     before = REAL_DB.stat().st_mtime if REAL_DB.exists() else None
 
-    run_demo(tmp_path / "reports" / "demo.html")
+    run_demo(tmp_path / "reports")
 
     assert len(opened) == 1
     assert opened[0].name == "demo.db"
@@ -365,3 +365,19 @@ def test_evidence_link_appears_in_the_row_details():
     details = html.split("<details", 1)[1].split("</details>", 1)[0]
     assert "Cloudflare challenge" in details
     assert 'href="https://example.com/evidence.txt"' in details
+
+
+def test_demo_writes_one_labelled_report_per_week(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    written = run_demo(tmp_path / "reports")
+    assert [path.name for path in written] == ["demo-week1.html", "demo-week2.html"]
+    week_1, week_2 = (visible_text(p.read_text(encoding="utf-8")) for p in written)
+
+    assert "DEMO: week 1 of 2, fictional data" in week_1
+    assert "Baseline recorded, changes appear from the next run." in week_1
+    assert "Ilona Fictional" in week_1  # the partner lists are there
+    assert "Needs review" not in week_1
+
+    assert "DEMO: week 2 of 2, fictional data" in week_2
+    assert "Baseline recorded" not in week_2
+    assert "Cedar Row LLP · 10 (last good, run 1)" in week_2

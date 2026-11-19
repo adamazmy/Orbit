@@ -195,9 +195,15 @@
     <h2 id="changes-heading">Changes since last run</h2>
     <span class="muted">compared with each firm's last good snapshot</span>
   </div>
+  {% if baseline and not monitored %}
+  {# Every collected firm is on its first snapshot: one message, not one per firm. #}
+  <p class="panel empty">Baseline recorded, changes appear from the next run.</p>
+  <p class="baseline">First snapshot for {{ baseline | join(", ") }}.</p>
+  {% else %}
   {% for firm in baseline %}
   <p class="baseline">{{ firm }}: baseline recorded, changes appear from the next run.</p>
   {% endfor %}
+  {% endif %}
   {% if changes %}
   <div class="cards">
     {% for change in changes %}

@@ -6,7 +6,8 @@ Then it diffs every OK firm against its last OK snapshot, pairs cross-firm
 moves, stores the resulting events, and writes reports/latest.html.
 
 `orbit report` re-renders the report from the database without fetching.
-`orbit demo` builds reports/demo.html from fictional data in a throwaway database.
+`orbit demo` builds reports/demo-week1.html and demo-week2.html from fictional
+data in a throwaway database.
 """
 
 import logging
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONFIG = Path("config/firms.yaml")
 DEFAULT_DB = Path("data/orbit.db")
 DEFAULT_REPORT = Path("reports/latest.html")
-DEFAULT_DEMO_REPORT = Path("reports/demo.html")
+DEFAULT_DEMO_DIR = Path("reports")
 
 app = typer.Typer(
     help="Orbit: track Corporate/M&A partners and what changed.", no_args_is_help=True
@@ -108,16 +109,16 @@ def report(
 
 @app.command()
 def demo(
-    output: Path = typer.Option(
-        DEFAULT_DEMO_REPORT, help="Where to write the demo report."
+    output_dir: Path = typer.Option(
+        DEFAULT_DEMO_DIR, help="Folder for the demo reports (one per week)."
     ),
 ) -> None:
-    """Build a report from fictional data (never touches the real database)."""
+    """Build one report per fictional week (never touches the real database)."""
     # Imported here, not at the top: orbit.demo reuses this module's pipeline functions.
     from orbit.demo import run_demo
 
-    run_demo(output)
-    typer.echo(f"Demo report (fictional data) written to {output}")
+    for path in run_demo(output_dir):
+        typer.echo(f"Demo report (fictional data) written to {path}")
 
 
 def collect_firm(
