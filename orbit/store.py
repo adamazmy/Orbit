@@ -98,10 +98,27 @@ def upsert_firms(conn: sqlite3.Connection, firms: list[FirmConfig]) -> None:
     )
 
 
-def create_run(conn: sqlite3.Connection) -> int:
-    """Start a new run and return its id."""
-    cursor = conn.execute("INSERT INTO runs (started_at) VALUES (?)", (_now(),))
+def create_run(conn: sqlite3.Connection, started_at: str | None = None) -> int:
+    """Start a new run and return its id.
+
+    started_at defaults to now; the demo passes its own dates (ISO 8601) so its
+    two fictional runs are a week apart.
+    """
+    cursor = conn.execute(
+        "INSERT INTO runs (started_at) VALUES (?)", (started_at or _now(),)
+    )
     return cursor.lastrowid
+
+
+def get_run_started_at(conn: sqlite3.Connection, run_id: int) -> str | None:
+    """When a run started (ISO 8601), or None if there's no such run."""
+    row = conn.execute("SELECT started_at FROM runs WHERE id = ?", (run_id,)).fetchone()
+    return row[0] if row else None
+
+
+def get_latest_run_id(conn: sqlite3.Connection) -> int | None:
+    """The most recent run that recorded at least one firm's result."""
+    return conn.execute("SELECT MAX(run_id) FROM firm_runs").fetchone()[0]
 
 
 def finish_run(conn: sqlite3.Connection, run_id: int) -> None:
