@@ -132,9 +132,26 @@ firms:
 
   - id: milbank
     name: Milbank
-    enabled: false
-    status: NOT_ASSESSED
-    reason: Not yet assessed.
+    enabled: true
+    status: ACTIVE
+    directory_url: https://www.milbank.com/en/professionals/index.html
+    source:
+      # Same search platform as Cravath (/_site/search, v=attorney, f = offset), but
+      # it answers with rendered HTML cards ("json_wrapped_html"). robots.txt only
+      # disallows the HTML search page (/en/professionals/index.html?q=).
+      search_url: https://www.milbank.com/_site/search
+      profile_base_url: https://www.milbank.com
+      position_type: "20012"     # sent as t=20012
+      position_name: Partner     # sent as 20012_name=Partner
+      # Repeated p= values are combined as AND (305+306+823 gave 9 on 19 Nov, and
+      # adding 282 didn't change it), so we query one practice at a time and merge.
+      # Cards carry no practice, so each person gets the practices that returned them.
+      practices:
+        "305": Private Equity
+        "306": Mergers and Acquisitions
+        "823": Distressed M&A
+        # "282" is Corporate, the parent practice: not used (broader than M&A/PE).
+      page_size: 100
 
   - id: sullivan-cromwell
     name: Sullivan & Cromwell
