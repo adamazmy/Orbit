@@ -402,7 +402,12 @@ repo root.
 `write_report` renders the most recent run into a single HTML file. CSS and
 about 20 lines of vanilla JS are inline, and nothing loads from a CDN, so the
 file opens offline and can be emailed. Sections, in order:
-1. **Header:** run date, firms tracked, partners per firm.
+1. **Header:** run date, firms tracked, partners per firm. Each chip's count
+   is the number of rows the partners table shows for that firm, so the two
+   never disagree. For a SUSPECT or FAILED firm that's the last good count,
+   with this run's figure as the warning: "Weil, Gotshal & Manges: 92
+   partners (last good, run 9) · SUSPECT: this run returned 51". The health
+   table still shows this run's count and reason.
 2. **This week's changes:** MOVED first, then JOINED, LEFT, office and title
    changes.
    - A firm whose first OK snapshot is this run gets "baseline recorded,
@@ -415,7 +420,7 @@ file opens offline and can be emailed. Sections, in order:
 4. **All partners:** each firm's latest OK snapshot (`snapshot_runs`). For a
    SUSPECT or FAILED firm that's its last good list, not the doubtful or
    missing one. So stale data is never mistaken for current, `stale_notes`
-   labels such a firm in the header and above the table: "Showing last good
+   labels such a firm above the table: "Showing last good
    snapshot (run N), because this run looked broken" (SUSPECT), or "…because
    this run failed" (FAILED). The table has a text search, plus firm, office
    and practice drop-downs that filter rows in place.

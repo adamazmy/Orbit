@@ -201,10 +201,8 @@ SUSPECT_NOTE = "Showing last good snapshot (run 1), because this run looked brok
 
 
 def test_suspect_firm_is_labelled_in_header_and_partner_table(conn):
-    seed_demo_data(conn)  # Cedar Row: OK in run 1, SUSPECT in run 2
+    seed_demo_data(conn)  # Cedar Row: 10 partners (OK) in run 1, 2 (SUSPECT) in run 2
     data = build_report_data(conn, demo_config())
-    cedar = next(f for f in data["firms"] if f["name"] == "Cedar Row LLP")
-    assert cedar["note"] == SUSPECT_NOTE
     assert data["stale"] == [{"name": "Cedar Row LLP", "note": SUSPECT_NOTE}]
 
     text = visible_text(render(data | {"banner": None}))
@@ -212,14 +210,37 @@ def test_suspect_firm_is_labelled_in_header_and_partner_table(conn):
         text.split("This week's changes")[0],
         text.split("All partners")[1],
     )
-    assert SUSPECT_NOTE in header
+    chip = (
+        "Cedar Row LLP: 10 partners (last good, run 1) · SUSPECT: this run returned 2"
+    )
+    # visible_text puts a space where each tag was; the page has none before the colon.
+    assert chip in header.replace(" :", ":")
     assert SUSPECT_NOTE in partners
+
+
+def test_header_count_matches_partner_rows_shown(conn):
+    seed_demo_data(conn)
+    data = build_report_data(conn, demo_config())
+    for firm in data["firms"]:
+        rows = [p for p in data["partners"] if p["firm"] == firm["name"]]
+        assert firm["count"] == len(rows), firm["name"]
+    cedar = next(f for f in data["firms"] if f["name"] == "Cedar Row LLP")
+    assert (cedar["count"], cedar["this_run_count"]) == (10, 2)
+
+
+def test_health_table_keeps_this_runs_count(conn):
+    seed_demo_data(conn)
+    health = build_report_data(conn, demo_config())["health"]
+    cedar = next(r for r in health if r["name"] == "Cedar Row LLP")
+    assert (cedar["status"], cedar["count"]) == ("SUSPECT", 2)
+    assert cedar["reason"]
 
 
 def test_ok_firms_carry_no_stale_label(conn):
     seed_demo_data(conn)
     data = build_report_data(conn, demo_config())
-    assert [f["note"] for f in data["firms"] if f["status"] == "OK"] == ["", ""]
+    ok_firms = [f for f in data["firms"] if f["status"] == "OK"]
+    assert [f["last_good_run"] for f in ok_firms] == [None, None]
 
 
 def test_failed_firm_is_labelled_too(conn):

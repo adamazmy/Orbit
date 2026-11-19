@@ -12,6 +12,7 @@ The data work (grouping, wording, filter options) happens here in Python, so
 the template only lays things out.
 """
 
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -83,7 +84,7 @@ def build_report_data(conn, config: OrbitConfig) -> dict[str, Any]:
             "id": run_id,
             "date": _format_date(store.get_run_started_at(conn, run_id)),
         },
-        firms=firm_summary(firm_runs, names, notes),
+        firms=firm_summary(firm_runs, names, snapshots, partners),
         stale=[{"name": names.get(f, f), "note": n} for f, n in sorted(notes.items())],
         changes=[describe_event(e, names) for e in sort_changes(events)],
         review=[describe_event(e, names) for e in events if e.type in REVIEW_TYPES],
@@ -96,19 +97,32 @@ def build_report_data(conn, config: OrbitConfig) -> dict[str, Any]:
 
 
 def firm_summary(
-    firm_runs: dict, names: dict[str, str], notes: dict[str, str]
+    firm_runs: dict, names: dict[str, str], snapshots: dict[str, int], partners: list
 ) -> list[dict]:
-    """Header line per firm collected this run: name, status, count, stale-data note."""
-    return [
-        {
-            "name": names.get(firm_id, firm_id),
-            "status": row["status"],
-            "count": row["partner_count"],
-            "note": notes.get(firm_id, ""),
-        }
-        for firm_id, row in sorted(firm_runs.items())
-        if row["status"] != "SKIPPED"
-    ]
+    """Header chip per firm collected this run.
+
+    The count is the number of rows the partners table shows for the firm, so
+    a SUSPECT or FAILED firm shows its last good count, with this run's count
+    alongside as the warning (the health table keeps this run's figure).
+    """
+    shown = Counter(p["firm"] for p in partners)
+    chips = []
+    for firm_id, row in sorted(firm_runs.items()):
+        if row["status"] == "SKIPPED":
+            continue
+        snapshot_run = snapshots.get(firm_id)
+        is_stale = snapshot_run is not None and row["status"] != "OK"
+        name = names.get(firm_id, firm_id)
+        chips.append(
+            {
+                "name": name,
+                "status": row["status"],
+                "count": shown[name],
+                "last_good_run": snapshot_run if is_stale else None,
+                "this_run_count": row["partner_count"],
+            }
+        )
+    return chips
 
 
 def sort_changes(events: list[Event]) -> list[Event]:

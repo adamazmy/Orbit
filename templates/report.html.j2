@@ -68,7 +68,11 @@
   <p class="muted">Run {{ run.id }} · {{ run.date }} · {{ firms | length }} firm{{ "s" if firms | length != 1 }} tracked · generated {{ generated_at }}</p>
   <ul class="chips" aria-label="Partners per firm">
     {% for firm in firms %}
-    <li>{{ firm.name }}: <strong>{{ firm.count }}</strong> partners{% if firm.status != "OK" %} <span class="tag {{ firm.status }}">{{ firm.status }}</span>{% endif %}{% if firm.note %} <span class="stale-note">{{ firm.note }}</span>{% endif %}</li>
+    <li>{{ firm.name }}: <strong>{{ firm.count }}</strong> partners
+      {%- if firm.last_good_run %} <span class="stale-note">(last good, run {{ firm.last_good_run }})</span>{% endif %}
+      {%- if firm.status != "OK" %} · <span class="tag {{ firm.status }}">{{ firm.status }}</span>
+        {%- if firm.last_good_run %}<span class="stale-note">: this run returned {{ firm.this_run_count }}</span>{% endif %}
+      {%- endif %}</li>
     {% endfor %}
   </ul>
   {% else %}
