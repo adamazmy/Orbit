@@ -95,7 +95,7 @@ Scope: people titled Partner in M&A, Private Equity or M&A-specific practices, i
 | Sullivan & Cromwell | NOT ASSESSED | — | — | Not yet assessed. |
 
 How accuracy is protected:
-- **Completeness checks in each adapter.** Cravath's adapter pages until it has the `total` the API reports. Weil's must end with exactly `TotalCount` unique profiles. Otherwise the firm is marked FAILED, not stored as a short list.
+- **Completeness checks in each adapter.** Cravath's adapter pages until it has the `total` the API reports. Weil's must end with exactly `TotalCount` unique profiles. Milbank's adapter must match each practice's site total. Otherwise the firm is marked FAILED, not stored as a short list.
 - **Health check.** A firm with 0 partners, or a drop of more than 30% against its last OK run, is marked SUSPECT and produces no change events that run. The report then shows its last good list, labelled as such.
 - **Diffs against the last OK run**, not simply the previous run, so one bad run doesn't create false joins and departures.
 - **Cross-firm moves.** A move is only asserted automatically when the names score 92 or more and the normalised first and last names are identical. Weaker matches (85 or more) are shown under "Needs review", and the underlying LEFT and JOINED are kept.
@@ -232,7 +232,7 @@ In production, the route for blocked firms would be to ask for access, or to lic
 
 - **Python 3.12**: simple to read and run; the whole tool is plain functions.
 - **httpx**: HTTP client with timeouts and a clean API, wrapped by the polite fetcher.
-- **selectolax** (lexbor parser): fast HTML parsing for Weil's HTML snippets.
+- **selectolax** (lexbor parser): fast HTML parsing for the HTML returned by Weil and Milbank.
 - **rapidfuzz**: fuzzy name scoring (`token_set_ratio`) for cross-firm move matching.
 - **pydantic**: validates `firms.yaml` and the partner/event models at the boundary.
 - **pyyaml**: reads the firm config.
