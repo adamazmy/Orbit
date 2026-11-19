@@ -13,13 +13,13 @@ Recon done by hand on 18 Nov 2026. This is the source of truth for building adap
 - Fetch two pages (no pagination, everything on one page):
   - Corporate: `https://www.wlrk.com/attorneys?asf_n=&asf_pa=corporate&asf_ls=&asf_p=partner&asf_ugs=`
   - Real Estate M&A: `https://www.wlrk.com/attorneys?asf_n=&asf_pa=real-estate-ma&asf_ls=&asf_p=partner&asf_ugs=`
-- Profile URLs mostly `/attorney/<handle>/`, but some are `/<handle>/` (e.g. `/msjones/`). Use the profile URL as the stable ID; don't assume the pattern.
+- Profile URLs mostly `/attorney/<handle>/`, but a few are just `/<handle>/`. Use the profile URL as the stable ID; don't assume the pattern.
 - One office (New York).
 - robots.txt: only disallows `/wp-admin/`, `/files/`, `/webdocs/`, `/docs/`. `/attorneys` allowed.
-- **Cloudflare bot challenge (found 18 Nov, after recon):** a non-browser GET of `/attorneys` returns `HTTP 403` with `Cf-Mitigated: challenge` and `Server: cloudflare`. Orbit's own fetcher hit the same 403. Not bypassed (scraping conduct rule). Evidence: [docs/evidence/wachtell-cloudflare.txt](docs/evidence/wachtell-cloudflare.txt).
+- **Cloudflare bot challenge (found 18 Nov, after recon):** a non-browser GET of `/attorneys` returns `HTTP 403` with `Cf-Mitigated: challenge` and `Server: cloudflare`. Orbit's own fetcher hit the same 403. Not bypassed: getting past it would mean a headless browser or solving the challenge, which goes against the firm's clear intent to keep automated clients out (scraping conduct rule). Evidence: [docs/evidence/wachtell-cloudflare.txt](docs/evidence/wachtell-cloudflare.txt).
 - **Ground truth: 35 partners** (34 Corporate + 1 Real Estate M&A, no overlap), hand-counted 18 Nov.
 - Sitemap (`/sitemap_index.xml`) has per-profile last-modified dates — future incremental-update idea, not needed now.
-- Test case: Alison Preiss must NOT appear (left for Simpson Thacher, Jan 2026).
+- Test case: Alison Preiss must NOT appear (left for Simpson Thacher, Jan 2026; [Bloomberg Law, 20 Jan 2026](https://news.bloomberglaw.com/esg/simpson-thacher-hires-wachtell-dealmaker-in-strategic-m-a-move)).
 
 ## 2. Davis Polk & Wardwell — BLOCKED (Algolia search API; Pantheon edge 403)
 
@@ -36,7 +36,7 @@ Recon done by hand on 18 Nov 2026. This is the source of truth for building adap
 - **Blocked for Orbit's fetcher (found 18 Nov, after recon):** both results below are from the same machine with the same User-Agent (`OrbitBot/0.1 (partner-market research; weekly; +https://github.com/adamazmy/Orbit)`):
   - `curl.exe` gets **200** on `/robots.txt` and `/lawyers`, served from the CDN cache (`Via: varnish`, `X-Cache: HIT`).
   - Orbit's fetcher (httpx on Python's OpenSSL) gets **403** from the edge (`Server: Pantheon`, `x-pantheon-serious-reason: The page could not be loaded properly.`) on `/robots.txt`, in three tries: the default httpx headers, then with honest `Accept` / `Accept-Language` added, then with exactly curl's headers (Host, User-Agent, `Accept: */*` only).
-  - With the headers identical, the remaining difference is the TLS client, so we treat this as TLS fingerprinting. **Not bypassed:** no browser or TLS impersonation. Status set to BLOCKED in `config/firms.yaml`. `/lawyers` was never fetched by Orbit and the Algolia key was never read.
+  - With the headers identical, the remaining difference is the TLS client, so we treat this as TLS fingerprinting. **Not bypassed:** no browser or TLS impersonation. That would rely on disguising the client as a browser, which the site's edge is evidently there to stop, and it wouldn't behave the same on other machines. Status set to BLOCKED in `config/firms.yaml`. `/lawyers` was never fetched by Orbit and the Algolia key was never read.
   - Evidence: [docs/evidence/davispolk-curl-200.txt](docs/evidence/davispolk-curl-200.txt).
 
 ## 3. Cravath, Swaine & Moore — BUILD (JSON GET)
@@ -56,7 +56,7 @@ Recon done by hand on 18 Nov 2026. This is the source of truth for building adap
 
 - Found a clean JSON API (`POST /dataservices/.../AttorneyLookup/TeamMembers`), but **robots.txt disallows `/dataservices`**. Not used.
 - Permitted fallback `sitemap-directory.xml` is **stale**: every `lastmod` is 2021-02-24; recent hires (Alison Preiss, Nick Appleton) missing; current partners still under `/associates/`.
-- Live site confirms Alison Preiss and Nick Appleton are partners there (useful as cross-firm-move facts for the README).
+- Live site confirms Alison Preiss and Nick Appleton are partners there (useful as cross-firm-move facts for the README). Public sources: Preiss from Wachtell, [Bloomberg Law, 20 Jan 2026](https://news.bloomberglaw.com/esg/simpson-thacher-hires-wachtell-dealmaker-in-strategic-m-a-move); Appleton from Kirkland, [Simpson Thacher announcement, 30 Oct 2025](https://www.stblaw.com/about-us/news/view/2025/10/30/simpson-thacher-adds-m-a-partner-in-london) and [profile](https://www.stblaw.com/our-team/partners/nick---appleton).
 - Future routes: ask the firm, license data (e.g. Leopard List), or a manual check.
 
 ## 5. Quinn Emanuel — SCOPE NOTE
@@ -109,5 +109,5 @@ Kirkland & Ellis, Latham & Watkins, Skadden, Gibson Dunn, Paul Hastings, King & 
 
 Known facts checked against Orbit's stored Cravath snapshot (run 5, 18 Nov 2026, 65 partners).
 
-- **Aaron M. Gruber** (Cravath co-head of M&A): independently confirmed present in our Cravath list (New York, `person_key` 2242).
-- **Iliana Karaoglan:** Weil → Simpson Thacher (Jun 2025) → Weil (Jun 2026) → Cravath (confirmed on cravath.com, 18 Nov 2026). Present in our Cravath list (New York, `person_key` 35943). Weil profile status: _TBC_.
+- **Aaron M. Gruber** (Cravath co-head of M&A): independently confirmed present in our Cravath list (New York, `person_key` 2242). Source: [Cravath profile](https://www.cravath.com/people/aaron-m-gruber.html).
+- **Iliana Karaoglan:** Weil → Simpson Thacher (Jun 2025, [Simpson Thacher announcement](https://www.stblaw.com/about-us/news/view/2025/06/02/simpson-thacher-bolsters-m-a-practice-in-new-york-with-rising-star)) → Weil (Jun 2026, [Weil announcement](https://www.weil.com/articles/iliana-karaoglan-rejoins-weils-mergers-acquisitions-practice)) → Cravath (confirmed on her [Cravath profile](https://www.cravath.com/people/iliana-karaoglan.html), 18 Nov 2026). Present in our Cravath list (New York, `person_key` 35943). Weil: not in any of Orbit's Weil M&A/PE partner snapshots (18–19 Nov 2026), so Weil's directory no longer lists her there.
