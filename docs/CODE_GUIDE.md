@@ -15,8 +15,8 @@ Commands:
 - `orbit run`: collect, diff, then write `reports/latest.html`.
 - `orbit report`: re-render `reports/latest.html` from the database, with no
   network.
-- `orbit demo`: write `reports/demo.html` from fictional data in a throwaway
-  database.
+- `orbit demo`: write `reports/demo-week1.html` and `reports/demo-week2.html`
+  from fictional data in a throwaway database, one report per week.
 
 ## Run flow
 
@@ -446,7 +446,7 @@ The `orbit` command, built with Typer. `orbit run` follows the run flow above.
 
 `orbit report` and `orbit demo` are described below. Options: `--config`
 (default `config/firms.yaml`), `--db` (default `data/orbit.db`), `--output`
-(default `reports/latest.html`, or `reports/demo.html` for the demo), and `-v`
+(default `reports/latest.html`; for the demo, a folder, default `reports/`), and `-v`
 for debug logs. Paths are relative to the folder you run from, normally the
 repo root.
 
@@ -464,7 +464,8 @@ sits above it. Sections, top to bottom:
    LEFT, office and title changes. Badges say Moved, Joined, Left, Office or
    Title (`BADGES`), and a move reads "Firm A → Firm B".
    - A firm whose first OK snapshot is this run gets "baseline recorded,
-     changes appear from the next run".
+     changes appear from the next run". When *every* collected firm is new
+     (a first run, or demo week 1), that's said once and the firms are named.
    - With no changes, the page says "No changes detected across the N
      monitored firms". N (`monitored_firm_count`) counts firms OK in this run
      *and* an earlier one, so a baseline firm isn't counted: no change could
@@ -500,8 +501,15 @@ checks that a name containing `<script>` is escaped.
 ### `orbit/demo.py`
 `orbit demo` exists because a fresh install has only one snapshot, which
 shows no changes. The demo plays two fictional weekly runs (12 and 19 Nov)
-through the real pipeline (`save_snapshot`, `record_events`), so the report
-shows real engine output. What happens between the two weeks:
+through the real pipeline (`play_week`: `save_snapshot`, then
+`record_events`), so the reports show real engine output. A report always
+shows the latest run, so `run_demo` writes one right after each week:
+- `demo-week1.html`: the baseline. Every firm is on its first snapshot, so the
+  changes section says "Baseline recorded, changes appear from the next run"
+  once and names the firms, and the partner lists are shown.
+- `demo-week2.html`: everything below.
+
+What happens between the two weeks:
 - a cross-firm MOVED (Ilona Fictional);
 - a POSSIBLE_MOVE (Jane Doe → "Janet Doe"), with its LEFT and JOINED kept;
 - a JOINED and a LEFT;
@@ -511,8 +519,8 @@ shows real engine output. What happens between the two weeks:
 
 Everything happens in a `tempfile.TemporaryDirectory` database that's
 deleted afterwards. The real `data/orbit.db` is never opened, and a test spies
-on `store.connect` to prove it. The report carries the banner "DEMO —
-fictional data showing how weekly changes appear." `orbit/cli.py` imports the
+on `store.connect` to prove it. Each report carries a banner
+saying which week it is (`demo_banner`): "DEMO: week 1 of 2, fictional data". `orbit/cli.py` imports the
 demo inside the `demo` command, not at the top, because the demo reuses the
 CLI's pipeline functions.
 
@@ -530,6 +538,7 @@ Builds reports from the fictional demo weeks and checks:
 - the filters and profile links;
 - no external scripts or styles;
 - the baseline message, and the "no runs yet" page;
+- the demo writing one report per week, each with its week in the banner;
 - HTML escaping of names;
 - that the demo never opens or changes the real database.
 

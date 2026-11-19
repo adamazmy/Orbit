@@ -32,12 +32,12 @@ pip install -e ".[dev]"
 
 ```bash
 orbit run            # fetch every enabled firm, store a snapshot, write reports/latest.html
-orbit demo           # build reports/demo.html from fictional data (no network)
+orbit demo           # build reports/demo-week1.html and demo-week2.html from fictional data (no network)
 orbit report         # re-render reports/latest.html from the database (no network)
-python -m pytest     # 116 tests, all offline
+python -m pytest     # 137 tests, all offline
 ```
 
-The first live `orbit run` records a baseline: there is nothing to compare it with yet, so changes appear from the second run onward. Real partner lists change slowly, so `orbit demo` plays two fictional weeks through the same pipeline to show what joins, departures, moves and review flags look like in the report. The demo uses a temporary database and never touches `data/orbit.db`.
+The first live `orbit run` records a baseline: there is nothing to compare it with yet, so changes appear from the second run onward. Real partner lists change slowly, so `orbit demo` plays two fictional weeks through the same pipeline and writes a report after each one: `demo-week1.html` shows the baseline (nothing to compare yet), and `demo-week2.html` shows what joins, departures, moves, review flags and a suspect firm look like a week later. Each carries a banner saying which week it is. The demo uses a temporary database and never touches `data/orbit.db`.
 
 Data is stored in `data/orbit.db` (SQLite) and raw responses are cached in `data/raw/<run_id>/<firm_id>/`. Both are local only and gitignored.
 
