@@ -1,9 +1,12 @@
-"""Command-line entry point: `orbit run` (and later `orbit report`, `orbit health`).
+"""Command-line entry point: `orbit run`, `orbit report` and `orbit demo`.
 
 `orbit run` loads the config, starts a run, and for every enabled firm:
 fetch (adapter) -> keep partners only -> health check -> store the snapshot.
 Then it diffs every OK firm against its last OK snapshot, pairs cross-firm
-moves, and stores the resulting events.
+moves, stores the resulting events, and writes reports/latest.html.
+
+`orbit report` re-renders the report from the database without fetching.
+`orbit demo` builds reports/demo.html from fictional data in a throwaway database.
 """
 
 import logging
@@ -21,11 +24,14 @@ from orbit.fetch import FetchBlocked, Fetcher, FetchFailed
 from orbit.health import check_health
 from orbit.models import Event, FirmConfig, PartnerRecord, load_config
 from orbit.normalise import filter_partners, normalise_name
+from orbit.report import write_report
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = Path("config/firms.yaml")
 DEFAULT_DB = Path("data/orbit.db")
+DEFAULT_REPORT = Path("reports/latest.html")
+DEFAULT_DEMO_REPORT = Path("reports/demo.html")
 
 app = typer.Typer(
     help="Orbit: track Corporate/M&A partners and what changed.", no_args_is_help=True
@@ -56,8 +62,9 @@ def main(
 def run(
     config: Path = typer.Option(DEFAULT_CONFIG, help="Path to firms.yaml."),
     db: Path = typer.Option(DEFAULT_DB, help="Path to the SQLite database."),
+    output: Path = typer.Option(DEFAULT_REPORT, help="Where to write the HTML report."),
 ) -> None:
-    """Run one collection cycle over every enabled firm."""
+    """Run one collection cycle over every enabled firm, then write the report."""
     orbit_config = load_config(config)
     enabled = orbit_config.enabled_firms()
     conn = store.connect(db)
@@ -76,10 +83,41 @@ def run(
         events = record_events(conn, run_id)
         store.finish_run(conn, run_id)
         conn.commit()
+        write_report(conn, orbit_config, output)
     finally:
         conn.close()
     typer.echo(describe_events(events))
-    typer.echo(f"Run {run_id} saved to {db}")
+    typer.echo(f"Run {run_id} saved to {db}; report written to {output}")
+
+
+@app.command()
+def report(
+    config: Path = typer.Option(DEFAULT_CONFIG, help="Path to firms.yaml."),
+    db: Path = typer.Option(DEFAULT_DB, help="Path to the SQLite database."),
+    output: Path = typer.Option(DEFAULT_REPORT, help="Where to write the HTML report."),
+) -> None:
+    """Re-render the report for the latest run, without fetching anything."""
+    orbit_config = load_config(config)
+    conn = store.connect(db)
+    try:
+        write_report(conn, orbit_config, output)
+    finally:
+        conn.close()
+    typer.echo(f"Report written to {output}")
+
+
+@app.command()
+def demo(
+    output: Path = typer.Option(
+        DEFAULT_DEMO_REPORT, help="Where to write the demo report."
+    ),
+) -> None:
+    """Build a report from fictional data (never touches the real database)."""
+    # Imported here, not at the top: orbit.demo reuses this module's pipeline functions.
+    from orbit.demo import run_demo
+
+    run_demo(output)
+    typer.echo(f"Demo report (fictional data) written to {output}")
 
 
 def collect_firm(
