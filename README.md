@@ -33,12 +33,24 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
-```bash
-orbit run            # fetch every enabled firm, store a snapshot, write reports/latest.html
-orbit demo           # build reports/demo-week1.html and demo-week2.html from fictional data (no network)
-orbit report         # re-render reports/latest.html from the database (no network)
-python -m pytest     # 137 tests, all offline
-```
+**See it working straight away (fictional demo, no network):**
+
+1. `orbit demo`
+2. Open the two reports in your browser:
+   - Windows: `start reports\demo-week1.html` then `start reports\demo-week2.html`
+   - macOS: `open reports/demo-week1.html reports/demo-week2.html`
+   - Linux: `xdg-open reports/demo-week1.html`
+
+   (Or double-click the files in the `reports` folder.)
+   Week 1 is the baseline; week 2 shows joins, departures, a move, a review flag and a suspect firm.
+
+**Run it on real data:**
+
+1. `orbit run` fetches the live partner lists from Cravath, Weil and Milbank (about 8 requests, ~20 seconds) and writes `reports/latest.html`.
+2. Open it the same way (`start reports\latest.html` on Windows).
+3. Run `orbit run` again a week later to see real changes. `orbit report` rebuilds the page from the database without fetching anything.
+
+Then: `python -m pytest` runs all 137 tests offline.
 
 The first live `orbit run` records a baseline: there is nothing to compare it with yet, so changes appear from the second run onward. Real partner lists change slowly, so `orbit demo` plays two fictional weeks through the same pipeline and writes a report after each one: `demo-week1.html` shows the baseline (nothing to compare yet), and `demo-week2.html` shows what joins, departures, moves, review flags and a suspect firm look like a week later. Each carries a banner saying which week it is. The demo uses a temporary database and never touches `data/orbit.db`.
 
